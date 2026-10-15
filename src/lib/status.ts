@@ -14,6 +14,13 @@ export const STATUS_LABELS: Record<StatusLevel, string> = {
   act: "Needs attention",
 };
 
+/** A PSA reading's phase in words, keyed by the stored value. */
+export const PSA_PHASE_LABELS: Record<string, string> = {
+  "pre-op": "Before surgery",
+  "post-op": "After surgery",
+  "post-rad": "After radiation",
+};
+
 /** A PSA reading with a value; `phase` is "pre-op", "post-op" or "post-rad". */
 export type ValuedReading = { date: string; value: number; phase?: string };
 

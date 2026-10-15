@@ -6,7 +6,7 @@ import type { Document } from "@/hooks/useDocuments";
 import type { EditHistoryEntry } from "@/hooks/useEditHistory";
 import type { LabResult } from "@/hooks/useLabResults";
 import type { PsaReading } from "@/hooks/usePsaReadings";
-import { changesSince, changeWindowStart, tableLabel } from "./changes";
+import { changesSince, changeWindowStart } from "./changes";
 
 const psa = (id: string, date: string, value: number | null): PsaReading => ({
   id,
@@ -160,8 +160,8 @@ describe("changesSince", () => {
       ...empty,
       edits: [edit("e1", "2026-10-12T10:00:00Z", "plan_items", "INSERT", { title: "Scan" })],
     });
-    expect(item.title).toBe("Plan item added");
-    expect(item.detail).toBe("Scan");
+    expect(item.title).toBe("Added plan item: Scan");
+    expect(item.detail).toBeUndefined();
   });
 
   it("finds the seeded PSA result, documents and edits since the last plan item", () => {
@@ -187,7 +187,7 @@ describe("changesSince", () => {
       ...empty,
       edits: [{ ...e, record_id: "summary" }],
     });
-    expect(item.title).toBe("Summary updated");
+    expect(item.title).toBe("Updated the summary");
   });
 });
 
@@ -216,12 +216,5 @@ describe("changeWindowStart", () => {
       s.psa_readings.at(-1)!.date,
     );
     expect(TIMELINE.nextVisit).toBeGreaterThan(0);
-  });
-});
-
-describe("tableLabel", () => {
-  it("names known tables and passes others through", () => {
-    expect(tableLabel("psa_readings")).toBe("PSA reading");
-    expect(tableLabel("mystery")).toBe("mystery");
   });
 });

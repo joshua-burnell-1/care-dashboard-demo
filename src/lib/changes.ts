@@ -1,9 +1,10 @@
 // ABOUTME: "What changed" since the last plan item: new PSA results, lab panels, documents and the
-// ABOUTME: family's edits as linkable items, newest first, plus the table names edit history shows.
+// ABOUTME: family's edits as linkable items, newest first. Edits are worded by describeEdit.
 import type { Document } from "@/hooks/useDocuments";
 import type { EditHistoryEntry } from "@/hooks/useEditHistory";
 import type { LabResult } from "@/hooks/useLabResults";
 import type { PsaReading } from "@/hooks/usePsaReadings";
+import { SECTION_NAMES, describeEdit } from "./activity";
 import { metricSlug } from "./labs";
 import { canonicalMetricKey } from "./normalizeMetric";
 import { formatPsa } from "./status";
@@ -18,34 +19,6 @@ export type ChangeItem = {
   /** Where the item links. */
   to: string;
 };
-
-const TABLE_LABELS: Record<string, string> = {
-  psa_readings: "PSA reading",
-  care_team_members: "Care team",
-  medication_items: "Medication",
-  kpi_cards: "KPI card",
-  plan_items: "Plan item",
-  dashboard_sections: "Dashboard section",
-};
-
-export function tableLabel(name: string): string {
-  return TABLE_LABELS[name] ?? name;
-}
-
-const VERBS: Record<EditHistoryEntry["operation"], string> = {
-  INSERT: "added",
-  UPDATE: "updated",
-  DELETE: "deleted",
-};
-
-/** The name a row goes by, for naming a single edit. */
-function rowName(entry: EditHistoryEntry): string | undefined {
-  const row = entry.new_data ?? entry.old_data ?? {};
-  for (const key of ["title", "item", "name", "label", "metric"]) {
-    if (typeof row[key] === "string" && row[key]) return row[key] as string;
-  }
-  return undefined;
-}
 
 const day = (iso: string) => iso.slice(0, 10);
 
@@ -110,12 +83,6 @@ function documentChanges(sinceIso: string, documents: Document[]): ChangeItem[] 
     }));
 }
 
-const SECTION_NAMES: Record<string, string> = {
-  summary: "the summary",
-  red_flags: "the red flags",
-  open_questions: "the open questions",
-};
-
 /** What an edit touched, in words: a key to group by and a phrase for one or several edits. */
 function editSubject(e: EditHistoryEntry): { key: string; phrase: (n: number) => string } {
   const counted = (one: string, many: string) => (n: number) => (n === 1 ? one : `${n} ${many}`);
@@ -157,19 +124,9 @@ function editChanges(sinceIso: string, edits: EditHistoryEntry[]): ChangeItem[] 
   if (recent.length === 0) return [];
   if (recent.length === 1) {
     const [e] = recent;
-    const noun =
-      e.table_name === "dashboard_sections"
-        ? capitalize(editSubject(e).phrase(1).replace(/^the /, ""))
-        : tableLabel(e.table_name);
+    const { title, detail } = describeEdit(e);
     return [
-      {
-        id: `edit-${e.id}`,
-        kind: "edit",
-        title: `${noun} ${VERBS[e.operation]}`,
-        detail: rowName(e),
-        date: e.changed_at,
-        to: "/activity",
-      },
+      { id: `edit-${e.id}`, kind: "edit", title, detail, date: e.changed_at, to: "/activity" },
     ];
   }
   // Group by subject, most recently touched first (Map keeps first-insertion order).

@@ -4,6 +4,17 @@ import type { ChipLevel } from "@/components/StatusChip";
 import type { PlanItem } from "@/hooks/usePlanItems";
 import { formatDate } from "./format";
 
+/** Every status a plan item can have, in the order the editors offer them. */
+export const PLAN_STATUSES = [
+  "Locked",
+  "Scheduled",
+  "In flight",
+  "Conditional",
+  "Hold",
+  "Daily",
+  "Completed",
+] as const;
+
 /** Statuses that make a dated item overdue once its date has passed. */
 const OVERDUE_STATUSES = ["Scheduled", "In flight"];
 

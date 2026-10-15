@@ -1,8 +1,20 @@
+// ABOUTME: The review step after a document is read: each suggested update as a toggle, then Apply
+// ABOUTME: writes the chosen ones (PSA writes tell every PSA view to refetch).
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { notifyPsaReadingsChanged } from "@/hooks/usePsaReadings";
+import { CheckCircle2, Circle, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { Sparkles, CheckCircle2, Circle, X, Loader2 } from "lucide-react";
+import { StatusChip } from "@/components/StatusChip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { notifyPsaReadingsChanged } from "@/hooks/usePsaReadings";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDate } from "@/lib/format";
+import { FLAG_LABELS, normalizeFlag } from "@/lib/labs";
 
 export interface SuggestedPsa {
   date: string;
@@ -58,13 +70,17 @@ function hasAny(s: SuggestedUpdates): boolean {
   );
 }
 
-function flagChipClass(flag?: string | null): string {
-  const f = (flag ?? "").toUpperCase();
-  if (f === "NORMAL") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (f === "HIGH" || f === "LOW" || f === "ABNORMAL")
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  return "";
+/** A lab flag as a status chip: High, Low or Flagged to watch, Normal as in range. */
+function FlagChip({ flag }: { flag?: string | null }) {
+  const f = normalizeFlag(flag);
+  if (f) return <StatusChip level="watch" label={FLAG_LABELS[f]} />;
+  if ((flag ?? "").toUpperCase() === "NORMAL")
+    return <StatusChip level="stable" label="In range" />;
+  return null;
 }
+
+/** "Oct 6, 2026", or nothing for a missing or unreadable date. */
+const day = (iso?: string | null) => (iso ? formatDate(iso) : "");
 
 function Row({
   label,
@@ -81,18 +97,17 @@ function Row({
     <button
       type="button"
       onClick={onToggle}
-      className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border transition ${
-        checked ? "border-teal-200 bg-teal-50/60" : "border-stone-200 bg-stone-50/40 opacity-60"
+      aria-pressed={checked}
+      className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none motion-reduce:transition-none ${
+        checked ? "border-ink/25 bg-surface" : "border-line bg-paper text-muted"
       }`}
     >
-      <span className="mt-0.5 shrink-0 text-teal-600">
-        {checked ? <CheckCircle2 size={16} /> : <Circle size={16} className="text-stone-400" />}
+      <span aria-hidden className={`mt-0.5 shrink-0 ${checked ? "text-ink" : "text-muted"}`}>
+        {checked ? <CheckCircle2 size={16} /> : <Circle size={16} />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-0.5">
-          {label}
-        </p>
-        <div className="text-sm text-stone-800">{children}</div>
+        <p className="mb-0.5 text-xs font-medium tracking-wider text-muted uppercase">{label}</p>
+        <div className={`text-sm ${checked ? "text-ink" : "text-muted"}`}>{children}</div>
       </div>
     </button>
   );
@@ -134,7 +149,7 @@ export function SuggestionsModal({
   );
   const [applying, setApplying] = useState(false);
 
-  if (!open || !hasAny(suggestions)) return null;
+  if (!hasAny(suggestions)) return null;
 
   const total = [psaSel, medSel, teamSel, planSel, labSel].flat().filter(Boolean).length;
 
@@ -159,7 +174,7 @@ export function SuggestionsModal({
     const appliedBeforePsa = applied;
     for (let i = 0; i < psa.length; i++) {
       if (!psaSel[i]) continue;
-      await tryUpsert(`PSA ${psa[i].date}`, () =>
+      await tryUpsert(`PSA ${day(psa[i].date) || psa[i].date}`, () =>
         supabase.functions.invoke("dashboard-data", {
           body: { action: "upsert-psa", password, item: psa[i] },
         }),
@@ -235,31 +250,29 @@ export function SuggestionsModal({
     onClose();
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-start gap-3 p-5 border-b border-stone-100">
-          <div className="h-9 w-9 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center shrink-0">
-            <Sparkles size={16} className="text-teal-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-stone-900 text-sm">Suggested updates found</h3>
-            <p className="text-xs text-stone-500 mt-0.5 truncate">
-              From "{filename}" — review and apply
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
-            aria-label="Dismiss"
-          >
-            <X size={15} />
-          </button>
-        </div>
+  const sep = <span className="text-muted"> · </span>;
 
-        {/* Suggestions list */}
-        <div className="p-4 space-y-2.5 max-h-[50vh] overflow-y-auto">
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && !applying && onClose()}>
+      <DialogContent className="flex max-h-[90dvh] max-w-lg flex-col gap-0 overflow-hidden rounded-[20px] border-line bg-surface p-0 sm:rounded-[20px]">
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 border-b border-line p-5 pr-12 text-left">
+          <span
+            aria-hidden
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-ink"
+          >
+            <Sparkles size={16} />
+          </span>
+          <div className="min-w-0">
+            <DialogTitle className="font-display text-2xl leading-tight font-normal text-ink">
+              Suggested updates found
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 truncate text-sm text-muted">
+              From {filename}. Choose what to add to the record.
+            </DialogDescription>
+          </div>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
           {(suggestions.psa_readings ?? []).map((r, i) => (
             <Row
               key={`psa-${i}`}
@@ -267,14 +280,21 @@ export function SuggestionsModal({
               checked={psaSel[i]}
               onToggle={() => setPsaSel((s) => s.map((v, j) => (j === i ? !v : v)))}
             >
-              <span className="font-semibold">
+              <span className="font-medium tabular-nums">
                 {r.value != null ? `${r.value} ${r.unit}` : "Scheduled"}
               </span>
-              <span className="text-stone-500">
-                {" "}
-                · {r.date} · {r.phase}
-              </span>
-              {r.note && <span className="text-stone-500"> · {r.note}</span>}
+              {day(r.date) && (
+                <>
+                  {sep}
+                  <span className="tabular-nums">{day(r.date)}</span>
+                </>
+              )}
+              {r.note && (
+                <>
+                  {sep}
+                  {r.note}
+                </>
+              )}
             </Row>
           ))}
           {(suggestions.medications ?? []).map((m, i) => (
@@ -284,9 +304,14 @@ export function SuggestionsModal({
               checked={medSel[i]}
               onToggle={() => setMedSel((s) => s.map((v, j) => (j === i ? !v : v)))}
             >
-              <span className="font-semibold">{m.item}</span>
-              {m.dose && <span className="text-stone-500"> · {m.dose}</span>}
-              {m.purpose && <span className="text-stone-500"> — {m.purpose}</span>}
+              <span className="font-medium">{m.item}</span>
+              {m.dose && (
+                <>
+                  {sep}
+                  {m.dose}
+                </>
+              )}
+              {m.purpose && <p className="mt-0.5 text-xs text-muted">{m.purpose}</p>}
             </Row>
           ))}
           {(suggestions.care_team ?? []).map((t, i) => (
@@ -296,9 +321,14 @@ export function SuggestionsModal({
               checked={teamSel[i]}
               onToggle={() => setTeamSel((s) => s.map((v, j) => (j === i ? !v : v)))}
             >
-              <span className="font-semibold">{t.name}</span>
-              {t.role && <span className="text-stone-500"> · {t.role}</span>}
-              {t.where_based && <span className="text-stone-500"> · {t.where_based}</span>}
+              <span className="font-medium">{t.name}</span>
+              {t.role && (
+                <>
+                  {sep}
+                  {t.role}
+                </>
+              )}
+              {t.where_based && <p className="mt-0.5 text-xs text-muted">{t.where_based}</p>}
             </Row>
           ))}
           {(suggestions.plan_items ?? []).map((p, i) => (
@@ -308,9 +338,14 @@ export function SuggestionsModal({
               checked={planSel[i]}
               onToggle={() => setPlanSel((s) => s.map((v, j) => (j === i ? !v : v)))}
             >
-              <span className="font-semibold">{p.title}</span>
-              {p.event_date && <span className="text-stone-500"> · {p.event_date}</span>}
-              {p.body && <p className="text-stone-600 text-xs mt-0.5">{p.body}</p>}
+              <span className="font-medium">{p.title}</span>
+              {day(p.event_date) && (
+                <>
+                  {sep}
+                  <span className="tabular-nums">{day(p.event_date)}</span>
+                </>
+              )}
+              {p.body && <p className="mt-0.5 text-xs text-muted">{p.body}</p>}
             </Row>
           ))}
           {(suggestions.lab_results ?? []).map((r, i) => (
@@ -320,55 +355,47 @@ export function SuggestionsModal({
               checked={labSel[i]}
               onToggle={() => setLabSel((s) => s.map((v, j) => (j === i ? !v : v)))}
             >
-              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                <span className="font-semibold">{r.metric}</span>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-medium">{r.metric}</span>
                 {r.value !== null && r.value !== undefined && r.value !== "" && (
-                  <span className="text-stone-800">{`${r.value}${r.unit ? " " + r.unit : ""}`}</span>
+                  <span className="tabular-nums">{`${r.value}${r.unit ? " " + r.unit : ""}`}</span>
                 )}
-                {r.reference_range && (
-                  <span className="text-stone-500 text-xs">· ref {r.reference_range}</span>
-                )}
-                {r.flag && (
-                  <span
-                    className={`text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border ${flagChipClass(r.flag)}`}
-                  >
-                    {r.flag}
-                  </span>
-                )}
+                <FlagChip flag={r.flag} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-1.5 mt-0.5 text-xs">
-                {r.date ? (
-                  <span className="text-stone-500">{r.date}</span>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                {day(r.date) ? (
+                  <span className="tabular-nums">{day(r.date)}</span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
-                    no date
-                  </span>
+                  <StatusChip level="neutral" label="No date" />
                 )}
-                {r.category && <span className="text-stone-500">· {r.category}</span>}
-                {r.note && <span className="text-stone-500">· {r.note}</span>}
+                {r.reference_range && <span className="tabular-nums">Ref {r.reference_range}</span>}
+                {r.category && <span>{r.category}</span>}
+                {r.note && <span>{r.note}</span>}
               </div>
             </Row>
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between gap-3 p-4 border-t border-stone-100 bg-stone-50/50">
+        <div className="flex items-center justify-between gap-3 border-t border-line p-4">
           <button
+            type="button"
             onClick={onClose}
-            className="text-sm text-stone-500 hover:text-stone-800 transition px-3 py-2"
+            disabled={applying}
+            className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-medium text-muted transition-colors duration-200 ease-out hover:bg-secondary hover:text-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             Skip
           </button>
           <button
+            type="button"
             onClick={apply}
             disabled={applying || total === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-ink px-4 text-sm font-medium text-paper transition-colors duration-200 ease-out hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
           >
-            {applying && <Loader2 size={14} className="animate-spin" />}
+            {applying && <Loader2 size={14} aria-hidden className="animate-spin" />}
             Apply {total} update{total === 1 ? "" : "s"}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

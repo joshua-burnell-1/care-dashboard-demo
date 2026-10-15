@@ -1,10 +1,21 @@
+import { useEffect, useState } from "react";
 import { Toaster as Sonner } from "sonner";
+import { getStoredTheme, THEME_CHANGE_EVENT, type Theme } from "@/lib/theme";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  // Toasts follow the app's theme toggle, not only the system setting.
+  const [theme, setTheme] = useState<Theme>(getStoredTheme);
+  useEffect(() => {
+    const follow = () => setTheme(getStoredTheme());
+    window.addEventListener(THEME_CHANGE_EVENT, follow);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, follow);
+  }, []);
+
   return (
     <Sonner
+      theme={theme}
       className="toaster group"
       toastOptions={{
         classNames: {

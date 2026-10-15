@@ -11,14 +11,16 @@ export type Document = {
   status: "pending" | "processing" | "indexed" | "error";
   error: string | null;
   extracted_chars: number;
+  /** The text read from the file. The demo stores it on the row; the real schema does not. */
+  extracted_text?: string;
 };
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Loading covers the first fetch only, so a refresh never blanks the list.
   const refresh = useCallback(async () => {
-    setLoading(true);
     const { data } = await supabase
       .from("documents")
       .select("*")
@@ -40,4 +42,16 @@ export function useDocuments() {
   }, [refresh]);
 
   return { documents, loading, refresh };
+}
+
+/** Deletes a document and its indexed text. */
+export async function deleteDocument(password: string, id: string) {
+  const { data, error } = await supabase.functions.invoke("ingest-document", {
+    body: { action: "delete", password, document_id: id },
+  });
+  if (error) throw error;
+  if (!data?.ok) {
+    const e = data?.error;
+    throw new Error(typeof e === "string" ? e : e?.message || "Failed to delete");
+  }
 }

@@ -13,7 +13,7 @@ test("demo boots with fictional data and no password", async ({ page }) => {
   // Reduced motion makes the PSA chart draw at once, so a capture shows the line and fill.
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByText("Demo mode · All patient data is fictional")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Demo · fictional data" })).toBeVisible();
   await expect(page.getByText("Raymond Ellis · Care Dashboard")).toBeVisible();
   await expect(page.getByPlaceholder("Password")).toHaveCount(0);
   await expect(page.locator(".recharts-area-curve")).toBeVisible();
@@ -27,6 +27,7 @@ test("demo boots with fictional data and no password", async ({ page }) => {
 
 test("chat asks for an API key", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Assistant" }).click();
   await page.locator('input[placeholder="Ask a question…"]:visible').fill("What was the last PSA?");
   await page.keyboard.press("Enter");
   await expect(page.getByText("Your key stays in this browser tab")).toBeVisible();
@@ -34,7 +35,10 @@ test("chat asks for an API key", async ({ page }) => {
 
 test("sample document opens suggested updates without a key", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Records" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Documents" })
+    .click();
   await page.getByRole("button", { name: /Lab report/ }).click();
   await expect(page.getByText("Suggested updates found")).toBeVisible();
   const rows = page.getByRole("button", {
@@ -58,7 +62,8 @@ test("an edit survives reload and reset restores it", async ({ page }) => {
   await page.reload();
   await expect(page.getByText("EDITED-42")).toBeVisible();
 
-  await page.getByRole("button", { name: "Reset demo data" }).click();
+  await page.getByRole("button", { name: "Demo · fictional data" }).click();
+  await page.getByRole("menuitem", { name: "Reset demo data" }).click();
   await expect(page.getByText("Raymond Ellis · Care Dashboard")).toBeVisible();
   await expect(page.getByText("EDITED-42")).toHaveCount(0);
   await expect(page.getByText(original, { exact: true }).first()).toBeVisible();

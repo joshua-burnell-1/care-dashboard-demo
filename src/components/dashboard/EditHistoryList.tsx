@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+// ABOUTME: The edit history list: recent changes across the record with a diff per row and a
+// ABOUTME: one-click restore. Rendered on the /activity page.
+import { useState } from "react";
 import { useEditHistory, tableLabel, type EditHistoryEntry } from "@/hooks/useEditHistory";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -145,49 +146,23 @@ function EntryRow({
   );
 }
 
-export function EditHistoryPanel({
-  open,
-  onClose,
-  password,
-  onRestored,
-}: {
-  open: boolean;
-  onClose: () => void;
-  password: string;
-  onRestored: () => void;
-}) {
+/** The last 50 edits across the record, newest first; open a row to see the diff and restore. */
+export function EditHistoryList({ password }: { password: string }) {
   const { entries, loading, refresh } = useEditHistory();
 
-  // The panel stays mounted, so reload on open to include edits made since the page loaded.
-  useEffect(() => {
-    if (open) refresh();
-  }, [open, refresh]);
-
-  function handleRestored() {
-    refresh();
-    onRestored();
+  if (loading) return <p className="px-4 py-6 text-sm text-stone-500">Loading…</p>;
+  if (entries.length === 0) {
+    return (
+      <p className="px-4 py-6 text-sm text-stone-500">
+        No edits yet. Changes will appear here after you edit something.
+      </p>
+    );
   }
-
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="px-4 py-3 border-b border-stone-200">
-          <SheetTitle className="text-sm font-semibold text-stone-900">Edit history</SheetTitle>
-          <p className="text-xs text-stone-500">Last 50 changes. Click any row to restore.</p>
-        </SheetHeader>
-        <div className="flex-1 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-sm text-stone-500">Loading…</p>}
-          {!loading && entries.length === 0 && (
-            <p className="px-4 py-6 text-sm text-stone-500">
-              No edits yet. Changes will appear here after you edit something.
-            </p>
-          )}
-          {!loading &&
-            entries.map((e) => (
-              <EntryRow key={e.id} entry={e} password={password} onRestored={handleRestored} />
-            ))}
-        </div>
-      </SheetContent>
-    </Sheet>
+    <div>
+      {entries.map((e) => (
+        <EntryRow key={e.id} entry={e} password={password} onRestored={refresh} />
+      ))}
+    </div>
   );
 }

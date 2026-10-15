@@ -10,33 +10,206 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as CircleRouteImport } from './routes/circle'
+import { Route as LearnRouteImport } from './routes/learn'
+import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as TeamRouteImport } from './routes/team'
+import { Route as DocumentsIndexRouteImport } from './routes/documents.index'
+import { Route as DocumentsDocIdRouteImport } from './routes/documents.$docId'
+import { Route as LabsIndexRouteImport } from './routes/labs.index'
+import { Route as LabsMetricRouteImport } from './routes/labs.$metric'
+import { Route as LabsPsaRouteImport } from './routes/labs.psa'
+import { Route as PlanIndexRouteImport } from './routes/plan.index'
+import { Route as PlanVisitIdRouteImport } from './routes/plan.$visitId'
+import { Route as ShareTokenRouteImport } from './routes/share.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CircleRoute = CircleRouteImport.update({
+  id: '/circle',
+  path: '/circle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RemindersRoute = RemindersRouteImport.update({
+  id: '/reminders',
+  path: '/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsIndexRoute = DocumentsIndexRouteImport.update({
+  id: '/documents/',
+  path: '/documents/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsDocIdRoute = DocumentsDocIdRouteImport.update({
+  id: '/documents/$docId',
+  path: '/documents/$docId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsIndexRoute = LabsIndexRouteImport.update({
+  id: '/labs/',
+  path: '/labs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsMetricRoute = LabsMetricRouteImport.update({
+  id: '/labs/$metric',
+  path: '/labs/$metric',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsPsaRoute = LabsPsaRouteImport.update({
+  id: '/labs/psa',
+  path: '/labs/psa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanIndexRoute = PlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanVisitIdRoute = PlanVisitIdRouteImport.update({
+  id: '/plan/$visitId',
+  path: '/plan/$visitId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareTokenRoute = ShareTokenRouteImport.update({
+  id: '/share/$token',
+  path: '/share/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/circle': typeof CircleRoute
+  '/learn': typeof LearnRoute
+  '/reminders': typeof RemindersRoute
+  '/team': typeof TeamRoute
+  '/documents/$docId': typeof DocumentsDocIdRoute
+  '/labs/$metric': typeof LabsMetricRoute
+  '/labs/psa': typeof LabsPsaRoute
+  '/plan/$visitId': typeof PlanVisitIdRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/documents/': typeof DocumentsIndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/plan/': typeof PlanIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/circle': typeof CircleRoute
+  '/learn': typeof LearnRoute
+  '/reminders': typeof RemindersRoute
+  '/team': typeof TeamRoute
+  '/documents/$docId': typeof DocumentsDocIdRoute
+  '/labs/$metric': typeof LabsMetricRoute
+  '/labs/psa': typeof LabsPsaRoute
+  '/plan/$visitId': typeof PlanVisitIdRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/documents': typeof DocumentsIndexRoute
+  '/labs': typeof LabsIndexRoute
+  '/plan': typeof PlanIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/circle': typeof CircleRoute
+  '/learn': typeof LearnRoute
+  '/reminders': typeof RemindersRoute
+  '/team': typeof TeamRoute
+  '/documents/$docId': typeof DocumentsDocIdRoute
+  '/labs/$metric': typeof LabsMetricRoute
+  '/labs/psa': typeof LabsPsaRoute
+  '/plan/$visitId': typeof PlanVisitIdRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/documents/': typeof DocumentsIndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/plan/': typeof PlanIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/activity'
+    | '/circle'
+    | '/learn'
+    | '/reminders'
+    | '/team'
+    | '/documents/$docId'
+    | '/labs/$metric'
+    | '/labs/psa'
+    | '/plan/$visitId'
+    | '/share/$token'
+    | '/documents/'
+    | '/labs/'
+    | '/plan/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/activity'
+    | '/circle'
+    | '/learn'
+    | '/reminders'
+    | '/team'
+    | '/documents/$docId'
+    | '/labs/$metric'
+    | '/labs/psa'
+    | '/plan/$visitId'
+    | '/share/$token'
+    | '/documents'
+    | '/labs'
+    | '/plan'
+  id:
+    | '__root__'
+    | '/'
+    | '/activity'
+    | '/circle'
+    | '/learn'
+    | '/reminders'
+    | '/team'
+    | '/documents/$docId'
+    | '/labs/$metric'
+    | '/labs/psa'
+    | '/plan/$visitId'
+    | '/share/$token'
+    | '/documents/'
+    | '/labs/'
+    | '/plan/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
+  CircleRoute: typeof CircleRoute
+  LearnRoute: typeof LearnRoute
+  RemindersRoute: typeof RemindersRoute
+  TeamRoute: typeof TeamRoute
+  DocumentsDocIdRoute: typeof DocumentsDocIdRoute
+  LabsMetricRoute: typeof LabsMetricRoute
+  LabsPsaRoute: typeof LabsPsaRoute
+  PlanVisitIdRoute: typeof PlanVisitIdRoute
+  ShareTokenRoute: typeof ShareTokenRoute
+  DocumentsIndexRoute: typeof DocumentsIndexRoute
+  LabsIndexRoute: typeof LabsIndexRoute
+  PlanIndexRoute: typeof PlanIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +221,115 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/circle': {
+      id: '/circle'
+      path: '/circle'
+      fullPath: '/circle'
+      preLoaderRoute: typeof CircleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reminders': {
+      id: '/reminders'
+      path: '/reminders'
+      fullPath: '/reminders'
+      preLoaderRoute: typeof RemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents/': {
+      id: '/documents/'
+      path: '/documents'
+      fullPath: '/documents/'
+      preLoaderRoute: typeof DocumentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents/$docId': {
+      id: '/documents/$docId'
+      path: '/documents/$docId'
+      fullPath: '/documents/$docId'
+      preLoaderRoute: typeof DocumentsDocIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/': {
+      id: '/labs/'
+      path: '/labs'
+      fullPath: '/labs/'
+      preLoaderRoute: typeof LabsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/$metric': {
+      id: '/labs/$metric'
+      path: '/labs/$metric'
+      fullPath: '/labs/$metric'
+      preLoaderRoute: typeof LabsMetricRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/psa': {
+      id: '/labs/psa'
+      path: '/labs/psa'
+      fullPath: '/labs/psa'
+      preLoaderRoute: typeof LabsPsaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan/': {
+      id: '/plan/'
+      path: '/plan'
+      fullPath: '/plan/'
+      preLoaderRoute: typeof PlanIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plan/$visitId': {
+      id: '/plan/$visitId'
+      path: '/plan/$visitId'
+      fullPath: '/plan/$visitId'
+      preLoaderRoute: typeof PlanVisitIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share/$token': {
+      id: '/share/$token'
+      path: '/share/$token'
+      fullPath: '/share/$token'
+      preLoaderRoute: typeof ShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
+  CircleRoute: CircleRoute,
+  LearnRoute: LearnRoute,
+  RemindersRoute: RemindersRoute,
+  TeamRoute: TeamRoute,
+  DocumentsDocIdRoute: DocumentsDocIdRoute,
+  LabsMetricRoute: LabsMetricRoute,
+  LabsPsaRoute: LabsPsaRoute,
+  PlanVisitIdRoute: PlanVisitIdRoute,
+  ShareTokenRoute: ShareTokenRoute,
+  DocumentsIndexRoute: DocumentsIndexRoute,
+  LabsIndexRoute: LabsIndexRoute,
+  PlanIndexRoute: PlanIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

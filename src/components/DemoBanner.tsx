@@ -1,8 +1,14 @@
-// ABOUTME: Strip across the top of the app in demo mode saying the data is fictional,
-// ABOUTME: with a button that puts the in-browser database back to its seed.
+// ABOUTME: Compact "Demo · fictional data" pill for the top bar in demo builds; its menu resets
+// ABOUTME: the in-browser database to its seed or opens the About dialog. Renders nothing otherwise.
 import { useState } from "react";
-import { Info, RotateCcw } from "lucide-react";
+import { ChevronDown, Info, RotateCcw } from "lucide-react";
 import { AboutDemoDialog } from "@/components/AboutDemoDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { demoDb } from "@/integrations/supabase/client";
 
 export function DemoBanner() {
@@ -16,28 +22,30 @@ export function DemoBanner() {
   }
 
   return (
-    <div
-      role="status"
-      className="shrink-0 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-100 border-b border-amber-200 px-4 py-1.5 text-xs text-amber-900"
-    >
-      <span className="font-medium">Demo mode · All patient data is fictional</span>
-      <button
-        type="button"
-        onClick={resetDemo}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium underline-offset-2 hover:bg-amber-200 hover:underline"
-      >
-        <RotateCcw size={12} aria-hidden="true" />
-        Reset demo data
-      </button>
-      <button
-        type="button"
-        onClick={() => setAboutOpen(true)}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium underline-offset-2 hover:bg-amber-200 hover:underline"
-      >
-        <Info size={12} aria-hidden="true" />
-        About this demo
-      </button>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink transition-colors duration-200 ease-out hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-watch" />
+          <span>
+            Demo<span className="sr-only sm:not-sr-only"> · fictional data</span>
+          </span>
+          <ChevronDown size={14} aria-hidden className="text-muted" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <p className="px-2 py-1.5 text-xs text-muted">
+            Everything here is fictional and stays in this browser.
+          </p>
+          <DropdownMenuItem onSelect={resetDemo}>
+            <RotateCcw aria-hidden />
+            Reset demo data
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
+            <Info aria-hidden />
+            About this demo
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <AboutDemoDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
-    </div>
+    </>
   );
 }

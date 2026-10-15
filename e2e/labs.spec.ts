@@ -303,9 +303,7 @@ test.describe("desktop", () => {
 
     await expect(page.getByRole("heading", { name: "How doubling time works" })).toBeVisible();
     await expect(page.getByText(/Under 2 months is fast, 2 to 6 months is moderate/)).toBeVisible();
-    await expect(page.getByRole("region", { name: "Readings" }).locator("tbody tr")).toHaveCount(
-      11,
-    );
+    await expect(page.locator("[data-psa-reading]")).toHaveCount(11);
   });
 
   test("Add reading on the PSA page opens the reading dialog", async ({ page }) => {

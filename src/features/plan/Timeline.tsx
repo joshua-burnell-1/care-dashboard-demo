@@ -1,24 +1,30 @@
 // ABOUTME: The plan timeline: overdue, upcoming, ongoing and past items as grouped lists of rows,
-// ABOUTME: with an empty state that points at the Add button.
+// ABOUTME: each row edited in place, with an empty state that points at the Add button.
 import type { PlanItem } from "@/hooks/usePlanItems";
 import { demoDb } from "@/integrations/supabase/client";
 import { canPrepare, type TimelineBuckets } from "@/lib/plan";
 import { PlanRow } from "./PlanRow";
+
+type RowActions = {
+  /** Saves an edited item; `prev` is what it replaces, for Undo. */
+  onSave: (next: PlanItem, prev: PlanItem) => Promise<void>;
+  onDelete: (item: PlanItem) => Promise<void>;
+};
 
 function Group({
   label,
   items,
   overdue = false,
   prepFrom,
-  onEdit,
+  onSave,
+  onDelete,
 }: {
   label: string;
   items: PlanItem[];
   overdue?: boolean;
   /** Today's date: items from then on get a Prepare link. Omit for none. */
   prepFrom?: string;
-  onEdit: (item: PlanItem) => void;
-}) {
+} & RowActions) {
   if (items.length === 0) return null;
   return (
     <section aria-label={label} data-timeline-group={label}>
@@ -32,7 +38,8 @@ function Group({
             item={it}
             overdue={overdue}
             canPrep={!!prepFrom && canPrepare(it, prepFrom)}
-            onEdit={onEdit}
+            onSave={onSave}
+            onDelete={onDelete}
           />
         ))}
       </ol>
@@ -43,12 +50,11 @@ function Group({
 export function Timeline({
   buckets,
   today,
-  onEdit,
+  ...actions
 }: {
   buckets: TimelineBuckets;
   today: string;
-  onEdit: (item: PlanItem | null) => void;
-}) {
+} & RowActions) {
   const { overdue, upcoming, ongoing, past } = buckets;
   const total = overdue.length + upcoming.length + ongoing.length + past.length;
   if (total === 0) {
@@ -63,15 +69,10 @@ export function Timeline({
       {upcoming.length === 0 && overdue.length === 0 && (
         <p className="text-sm text-muted">Nothing is coming up.</p>
       )}
-      <Group label="Overdue" items={overdue} overdue onEdit={onEdit} />
-      <Group
-        label="Upcoming"
-        items={upcoming}
-        prepFrom={demoDb ? today : undefined}
-        onEdit={onEdit}
-      />
-      <Group label="Ongoing and on hold" items={ongoing} onEdit={onEdit} />
-      <Group label="Past" items={past} onEdit={onEdit} />
+      <Group label="Overdue" items={overdue} overdue {...actions} />
+      <Group label="Upcoming" items={upcoming} prepFrom={demoDb ? today : undefined} {...actions} />
+      <Group label="Ongoing and on hold" items={ongoing} {...actions} />
+      <Group label="Past" items={past} {...actions} />
     </div>
   );
 }

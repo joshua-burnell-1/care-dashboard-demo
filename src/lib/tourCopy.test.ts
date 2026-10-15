@@ -27,6 +27,13 @@ describe("tourCopy", () => {
     }
     expect(text(true)).toMatch(/Demo menu/);
   });
+  it("describes editing in place with Undo, not the retired edit mode", () => {
+    for (const t of [text(true), text(false)]) {
+      expect(t).toMatch(/edit it in place/);
+      expect(t).toMatch(/Undo/);
+      expect(t).not.toMatch(/edit mode/i);
+    }
+  });
   it("uses no em dashes", () => {
     expect(text(true) + text(false)).not.toContain("—");
   });

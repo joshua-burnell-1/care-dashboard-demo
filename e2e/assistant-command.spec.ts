@@ -279,12 +279,11 @@ test.describe("desktop", () => {
     await expect(page.getByText(`${before + 1} readings`)).toBeVisible();
   });
 
-  test("Today: adding and editing a reading use the shared PSA dialog and refresh the list", async ({
+  test("PSA page: adding uses the shared dialog, editing happens in the readings list", async ({
     page,
   }) => {
-    await ready(page);
-    await page.getByRole("button", { name: "Enter edit mode" }).click();
-    const rows = page.getByRole("button", { name: /^\S.* ng\/mL/ });
+    await ready(page, "/labs/psa");
+    const rows = page.locator("[data-psa-reading]");
     const before = await rows.count();
     await page.getByRole("button", { name: "Add reading" }).click();
     await page.locator('input[type="date"]').fill("2026-10-12");
@@ -293,12 +292,13 @@ test.describe("desktop", () => {
     await expect(page.getByRole("heading", { name: "Add PSA reading" })).toHaveCount(0);
     await expect(rows).toHaveCount(before + 1);
 
-    await page.getByRole("button", { name: /0\.222 ng\/mL/ }).click();
-    await expect(page.getByRole("heading", { name: "Edit PSA reading" })).toBeVisible();
-    await page.locator('input[type="number"]').fill("0.333");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("button", { name: /0\.333 ng\/mL/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /0\.222 ng\/mL/ })).toHaveCount(0);
+    const row = page.locator('[data-psa-reading="2026-10-12"]');
+    await row.hover();
+    await row.getByRole("button", { name: "Edit PSA reading from Oct 12, 2026" }).click();
+    await row.getByLabel(/^PSA/).fill("0.333");
+    await row.getByLabel(/^PSA/).press("Enter");
+    await expect(row).toContainText("0.333");
+    await expect(row).not.toContainText("0.222");
   });
 
   test("actions: Upload a document goes to Documents and focuses the upload area", async ({

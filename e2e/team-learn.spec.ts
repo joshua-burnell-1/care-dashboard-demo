@@ -79,14 +79,12 @@ test.describe("team, desktop", () => {
 
   test("editing a member keeps the contact details", async ({ page }) => {
     await openTeam(page);
-    await page.getByRole("button", { name: "Edit Dr. Helen Brooks" }).click();
-    const dialog = page.getByRole("dialog", { name: "Edit care team member" });
-    await expect(dialog.getByPlaceholder("e.g. jane.smith@example.com")).toHaveValue(
-      /@example\.com$/,
-    );
-    await dialog.getByPlaceholder("e.g. Springfield, OH").fill("Northgate Primary Care");
-    await dialog.getByRole("button", { name: "Save" }).click();
     const card = page.locator('[data-member="Dr. Helen Brooks"]');
+    await card.hover();
+    await card.getByRole("button", { name: "Edit Dr. Helen Brooks" }).click();
+    await expect(card.getByLabel("Email")).toHaveValue(/@example\.com$/);
+    await card.getByLabel("Location").fill("Northgate Primary Care");
+    await card.getByRole("button", { name: "Save" }).click();
     await expect(card).toContainText("Northgate Primary Care");
     await expect(card.locator('a[href^="mailto:"]')).toHaveCount(1);
   });

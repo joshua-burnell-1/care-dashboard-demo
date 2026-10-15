@@ -22,8 +22,8 @@ export function tourCopy(name: string, demo: boolean): TourStep[] {
     {
       title: "Keep everything current",
       body: demo
-        ? "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, manage medications and change care team members. Changes are saved in this browser, and Reset demo data in the Demo menu at the top puts everything back."
-        : "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, manage medications and change care team members. Changes save instantly for everyone who signs in.",
+        ? "Use the pencil on any row to edit it in place: PSA readings, medications, the care team and the plan. Each save offers Undo for a few seconds, and Activity can undo any change later. Changes are saved in this browser, and Reset demo data in the Demo menu at the top puts everything back."
+        : "Use the pencil on any row to edit it in place: PSA readings, medications, the care team and the plan. Each save offers Undo for a few seconds, and Activity can undo any change later. Changes save instantly for everyone who signs in.",
     },
     {
       title: demo ? "Try the sample documents" : "Upload any medical document",

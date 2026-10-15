@@ -1,21 +1,25 @@
 // ABOUTME: The /plan/$visitId page: the visit's date, status and notes, the streaming AI prep
-// ABOUTME: brief inline, an Ask the assistant button, or a not-found state for an unknown id.
-import { useMemo, useState } from "react";
-import { Pencil, Sparkles } from "lucide-react";
+// ABOUTME: brief inline, an Ask the assistant button, or a not-found state for an unknown id. The
+// ABOUTME: details card edits in place with Undo.
+import { useMemo } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 import { openAssistant } from "@/components/assistant/assistantStore";
+import { InlineEdit } from "@/components/InlineEdit";
 import { MascotLoader } from "@/components/MascotLoader";
 import { StatusChip } from "@/components/StatusChip";
-import { PlanItemDialog } from "@/components/dashboard/PlanItemDialog";
 import { NotFoundState } from "@/components/shell/NotFoundState";
 import { Page } from "@/components/shell/Page";
 import { isoDaysFromToday } from "@/demo/dates";
 import { useMedications } from "@/hooks/useMedications";
-import { usePlanItems, savePlanItem, deletePlanItem } from "@/hooks/usePlanItems";
+import { usePlanItems, savePlanItem, deletePlanItem, type PlanItem } from "@/hooks/usePlanItems";
 import { usePsaReadings } from "@/hooks/usePsaReadings";
+import { useUndoableSave } from "@/hooks/useUndoableSave";
 import { demoDb } from "@/integrations/supabase/client";
 import { useAppSession } from "@/lib/appSession";
 import { formatDate, formatRelative } from "@/lib/format";
 import { isOverdue, planChip } from "@/lib/plan";
+import { PLAN_ITEM_FIELDS } from "./planFields";
 import { VisitPrepBrief } from "./VisitPrepBrief";
 
 const BUTTON =
@@ -28,8 +32,16 @@ export function VisitPage({ visitId }: { visitId: string }) {
   const { items, loading, refresh } = usePlanItems();
   const { items: psaReadings } = usePsaReadings();
   const { items: medications } = useMedications();
-  const [editorOpen, setEditorOpen] = useState(false);
+  const navigate = useNavigate();
   const item = items.find((i) => i.id === visitId);
+
+  // Saving the whole item back is also how an edit is undone.
+  const write = async (next: PlanItem) => {
+    const saved = await savePlanItem(password, next);
+    await refresh();
+    return saved;
+  };
+  const save = useUndoableSave(write, write);
 
   const visitPrepContext = useMemo(
     () => ({
@@ -51,7 +63,6 @@ export function VisitPage({ visitId }: { visitId: string }) {
     );
   }
 
-  const chip = planChip(item, isOverdue(item, isoDaysFromToday(0)));
   const showBrief = !!demoDb && item.status !== "Completed";
 
   return (
@@ -59,28 +70,22 @@ export function VisitPage({ visitId }: { visitId: string }) {
       title={item.title}
       breadcrumbs={[{ label: "Plan", to: "/plan" }, { label: item.title }]}
       actions={
-        <>
-          <button type="button" onClick={() => setEditorOpen(true)} className={BUTTON}>
-            <Pencil size={14} aria-hidden />
-            Edit
-          </button>
-          <button
-            type="button"
-            data-assistant-ask
-            onClick={() =>
-              openAssistant({
-                label: item.title,
-                prompt: item.event_date
-                  ? `What should we ask at "${item.title}" on ${formatDate(item.event_date, "long")}, and what should we bring?`
-                  : `What should we know about "${item.title}"?`,
-              })
-            }
-            className={BUTTON}
-          >
-            <Sparkles size={14} aria-hidden />
-            Ask the assistant
-          </button>
-        </>
+        <button
+          type="button"
+          data-assistant-ask
+          onClick={() =>
+            openAssistant({
+              label: item.title,
+              prompt: item.event_date
+                ? `What should we ask at "${item.title}" on ${formatDate(item.event_date, "long")}, and what should we bring?`
+                : `What should we know about "${item.title}"?`,
+            })
+          }
+          className={BUTTON}
+        >
+          <Sparkles size={14} aria-hidden />
+          Ask the assistant
+        </button>
       }
     >
       <div className="space-y-6">
@@ -88,59 +93,65 @@ export function VisitPage({ visitId }: { visitId: string }) {
           aria-label="Visit details"
           className="rounded-[20px] border border-line bg-surface p-5 sm:p-6"
         >
-          <dl className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-muted">Date</dt>
-              <dd className="mt-1.5">
-                {item.event_date ? (
-                  <>
-                    <p className="font-display text-3xl leading-tight text-ink tabular-nums">
-                      {formatDate(item.event_date, "long")}
-                    </p>
-                    <p className="text-sm text-muted tabular-nums">
-                      {capitalize(formatRelative(item.event_date))}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted">No date, an ongoing item.</p>
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wider text-muted">Status</dt>
-              <dd className="mt-1.5">
-                <StatusChip level={chip.level} label={chip.label} size="md" />
-              </dd>
-            </div>
-          </dl>
-          <div className="mt-5 border-t border-line pt-5">
-            <h2 className="text-xs font-medium uppercase tracking-wider text-muted">Notes</h2>
-            {item.body ? (
-              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink">
-                {item.body}
-              </p>
-            ) : (
-              <p className="mt-1.5 text-sm text-muted">No notes yet. Use Edit to add some.</p>
-            )}
-          </div>
+          <InlineEdit
+            value={item}
+            fields={PLAN_ITEM_FIELDS}
+            subject={item.title}
+            onSave={save}
+            onDelete={async () => {
+              await deletePlanItem(password, item.id);
+              await refresh();
+              void navigate({ to: "/plan" });
+            }}
+          >
+            {(shown, pencil) => <VisitDetails item={shown} pencil={pencil} />}
+          </InlineEdit>
         </section>
 
         {showBrief && <VisitPrepBrief key={item.id} item={item} context={visitPrepContext} />}
       </div>
-
-      <PlanItemDialog
-        open={editorOpen}
-        initial={item}
-        onClose={() => setEditorOpen(false)}
-        onSave={async (next) => {
-          await savePlanItem(password, next);
-          await refresh();
-        }}
-        onDelete={async (id) => {
-          await deletePlanItem(password, id);
-          await refresh();
-        }}
-      />
     </Page>
+  );
+}
+
+function VisitDetails({ item, pencil }: { item: PlanItem; pencil: React.ReactNode }) {
+  const chip = planChip(item, isOverdue(item, isoDaysFromToday(0)));
+  return (
+    <div className="relative">
+      <div className="absolute -top-2 -right-2">{pencil}</div>
+      <dl className="grid gap-5 pr-10 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wider text-muted">Date</dt>
+          <dd className="mt-1.5">
+            {item.event_date ? (
+              <>
+                <p className="font-display text-3xl leading-tight text-ink tabular-nums">
+                  {formatDate(item.event_date, "long")}
+                </p>
+                <p className="text-sm text-muted tabular-nums">
+                  {capitalize(formatRelative(item.event_date))}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted">No date, an ongoing item.</p>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wider text-muted">Status</dt>
+          <dd className="mt-1.5">
+            <StatusChip level={chip.level} label={chip.label} size="md" />
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-5 border-t border-line pt-5">
+        <h2 className="text-xs font-medium uppercase tracking-wider text-muted">Notes</h2>
+        {item.body ? (
+          <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink">{item.body}</p>
+        ) : (
+          <p className="mt-1.5 text-sm text-muted">No notes yet. Use the pencil to add some.</p>
+        )}
+      </div>
+    </div>
   );
 }

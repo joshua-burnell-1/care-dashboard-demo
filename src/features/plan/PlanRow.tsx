@@ -1,11 +1,13 @@
 // ABOUTME: One plan item on the timeline: a date badge, the title (a link to the visit page), how
-// ABOUTME: far away it is, a status chip, an excerpt of the notes, plus Prepare and Edit actions.
+// ABOUTME: far away it is, a status chip, an excerpt of the notes, a Prepare link, and editing in place.
 import { Link } from "@tanstack/react-router";
-import { CalendarClock, Pencil } from "lucide-react";
+import { CalendarClock } from "lucide-react";
+import { InlineEdit } from "@/components/InlineEdit";
 import { StatusChip } from "@/components/StatusChip";
 import type { PlanItem } from "@/hooks/usePlanItems";
 import { formatRelative } from "@/lib/format";
 import { dateBadge, planChip } from "@/lib/plan";
+import { PLAN_ITEM_FIELDS } from "./planFields";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -38,21 +40,50 @@ export function PlanRow({
   item,
   overdue,
   canPrep,
-  onEdit,
+  onSave,
+  onDelete,
 }: {
   item: PlanItem;
   overdue: boolean;
   /** Show the Prepare shortcut (open items, when the AI brief is available). */
   canPrep: boolean;
-  onEdit: (item: PlanItem) => void;
+  /** Saves an edited item; `prev` is what it replaces, for Undo. */
+  onSave: (next: PlanItem, prev: PlanItem) => Promise<void>;
+  onDelete: (item: PlanItem) => Promise<void>;
+}) {
+  return (
+    <li data-plan-row={item.id} className="border-t border-line first:border-t-0">
+      <InlineEdit
+        value={item}
+        fields={PLAN_ITEM_FIELDS}
+        subject={item.title}
+        onSave={onSave}
+        onDelete={() => onDelete(item)}
+        className="px-1 py-4"
+      >
+        {(shown, pencil) => (
+          <PlanRowView item={shown} overdue={overdue} canPrep={canPrep} pencil={pencil} />
+        )}
+      </InlineEdit>
+    </li>
+  );
+}
+
+function PlanRowView({
+  item,
+  overdue,
+  canPrep,
+  pencil,
+}: {
+  item: PlanItem;
+  overdue: boolean;
+  canPrep: boolean;
+  pencil: React.ReactNode;
 }) {
   const done = item.status === "Completed";
   const chip = planChip(item, overdue);
   return (
-    <li
-      data-plan-row={item.id}
-      className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-4 gap-y-3 border-t border-line px-1 py-4 first:border-t-0 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]"
-    >
+    <div className="relative grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-4 gap-y-3 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]">
       <DateBadge date={item.event_date} muted={done} />
       <div className="min-w-0">
         <Link
@@ -87,15 +118,8 @@ export function PlanRow({
             Prepare
           </Link>
         )}
-        <button
-          type="button"
-          onClick={() => onEdit(item)}
-          aria-label={`Edit ${item.title}`}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted transition-colors duration-200 ease-out hover:bg-secondary hover:text-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <Pencil size={15} aria-hidden />
-        </button>
+        {pencil}
       </div>
-    </li>
+    </div>
   );
 }

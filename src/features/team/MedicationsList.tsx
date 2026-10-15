@@ -1,10 +1,17 @@
 // ABOUTME: The medications and supplements as a clean list: item, dose, purpose, and who started it,
-// ABOUTME: with a quiet edit action per row and an empty state.
-import { Pencil } from "lucide-react";
+// ABOUTME: each row edited in place from a quiet pencil, with an empty state.
+import { InlineEdit, type InlineField } from "@/components/InlineEdit";
 import type { MedicationItem } from "@/hooks/useMedications";
 
 const COLUMNS =
   "md:[grid-template-columns:minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_2.25rem]";
+
+const FIELDS: InlineField<MedicationItem>[] = [
+  { name: "item", label: "Medication or supplement", required: true, maxLength: 300 },
+  { name: "dose", label: "Dose", maxLength: 300, placeholder: "For example, 2,000 IU daily" },
+  { name: "purpose", label: "Purpose", maxLength: 500 },
+  { name: "started_by", label: "Started by", maxLength: 200 },
+];
 
 function Cell({
   label,
@@ -31,11 +38,13 @@ function Cell({
 
 export function MedicationsList({
   medications,
-  onEdit,
+  onSave,
+  onDelete,
 }: {
   medications: MedicationItem[];
-  /** Opens the medication dialog for this item. */
-  onEdit: (item: MedicationItem) => void;
+  /** Saves an edited row; `prev` is what it replaces, for Undo. */
+  onSave: (next: MedicationItem, prev: MedicationItem) => Promise<void>;
+  onDelete: (item: MedicationItem) => Promise<void>;
 }) {
   if (medications.length === 0) {
     return (
@@ -57,33 +66,40 @@ export function MedicationsList({
       </div>
       <ul className="divide-y divide-line">
         {medications.map((m) => (
-          <li
-            key={m.id}
-            data-medication={m.item}
-            className={`relative grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 md:items-start md:gap-4 md:px-6 ${COLUMNS}`}
-          >
-            <div className="col-span-2 pr-9 md:col-span-1 md:pr-0">
-              <Cell label="Item" hideLabel>
-                <p className="font-medium text-ink">{m.item}</p>
-              </Cell>
-            </div>
-            <Cell label="Dose">
-              <p className="text-sm text-ink tabular-nums">{m.dose || "Not set"}</p>
-            </Cell>
-            <Cell label="Purpose" className="order-last col-span-2 md:order-none md:col-span-1">
-              <p className="text-sm text-muted">{m.purpose}</p>
-            </Cell>
-            <Cell label="Started by">
-              <p className="text-sm text-ink">{m.started_by || "Not recorded"}</p>
-            </Cell>
-            <button
-              type="button"
-              onClick={() => onEdit(m)}
-              aria-label={`Edit ${m.item}`}
-              className="absolute top-3 right-3 inline-flex size-9 items-center justify-center rounded-xl text-muted transition-colors duration-200 ease-out hover:bg-secondary hover:text-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:top-3.5 md:right-4"
+          <li key={m.id} data-medication={m.item}>
+            <InlineEdit
+              value={m}
+              fields={FIELDS}
+              subject={m.item}
+              onSave={onSave}
+              onDelete={() => onDelete(m)}
+              className="px-5 py-4 md:px-6"
             >
-              <Pencil size={14} aria-hidden />
-            </button>
+              {(shown, pencil) => (
+                <div
+                  className={`relative grid grid-cols-2 gap-x-4 gap-y-3 md:items-start md:gap-4 ${COLUMNS}`}
+                >
+                  <div className="col-span-2 pr-9 md:col-span-1 md:pr-0">
+                    <Cell label="Item" hideLabel>
+                      <p className="font-medium text-ink">{shown.item}</p>
+                    </Cell>
+                  </div>
+                  <Cell label="Dose">
+                    <p className="text-sm text-ink tabular-nums">{shown.dose || "Not set"}</p>
+                  </Cell>
+                  <Cell
+                    label="Purpose"
+                    className="order-last col-span-2 md:order-none md:col-span-1"
+                  >
+                    <p className="text-sm text-muted">{shown.purpose}</p>
+                  </Cell>
+                  <Cell label="Started by">
+                    <p className="text-sm text-ink">{shown.started_by || "Not recorded"}</p>
+                  </Cell>
+                  <div className="absolute -top-1 -right-2 md:static md:-mt-1.5">{pencil}</div>
+                </div>
+              )}
+            </InlineEdit>
           </li>
         ))}
       </ul>

@@ -5,16 +5,12 @@ const PHASES = ["pre-op", "post-op", "post-rad"] as const;
 
 export function PsaReadingDialog({
   open,
-  initial,
   onClose,
   onSave,
-  onDelete,
 }: {
   open: boolean;
-  initial?: PsaReading | null;
   onClose: () => void;
   onSave: (item: Partial<PsaReading>) => Promise<void>;
-  onDelete?: (id: string) => Promise<void>;
 }) {
   const [date, setDate] = useState("");
   const [value, setValue] = useState("");
@@ -27,15 +23,15 @@ export function PsaReadingDialog({
 
   useEffect(() => {
     if (open) {
-      setDate(initial?.date ?? "");
-      setValue(initial?.value != null ? String(initial.value) : "");
-      setUnit(initial?.unit ?? "ng/mL");
-      setPhase(initial?.phase ?? "post-rad");
-      setNote(initial?.note ?? "");
+      setDate("");
+      setValue("");
+      setUnit("ng/mL");
+      setPhase("post-rad");
+      setNote("");
       setErr("");
       setTimeout(() => firstRef.current?.focus(), 0);
     }
-  }, [open, initial]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,31 +50,17 @@ export function PsaReadingDialog({
     setErr("");
     try {
       await onSave({
-        id: initial?.id,
         date,
         value: value.trim() === "" ? null : Number(value),
         unit: unit.trim() || "ng/mL",
         phase,
         note: note.trim(),
-        sort_index: initial?.sort_index ?? 0,
+        sort_index: 0,
       });
       onClose();
     } catch (e) {
       setErr((e as Error).message);
     } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!initial?.id || !onDelete) return;
-    if (!confirm("Delete this PSA reading?")) return;
-    setSaving(true);
-    try {
-      await onDelete(initial.id);
-      onClose();
-    } catch (e) {
-      setErr((e as Error).message);
       setSaving(false);
     }
   }
@@ -97,7 +79,7 @@ export function PsaReadingDialog({
         className="w-full max-w-md bg-white rounded-2xl border border-stone-200 p-5 shadow-xl"
       >
         <h3 id="psa-dialog-title" className="text-base font-semibold text-stone-900 mb-4">
-          {initial?.id ? "Edit PSA reading" : "Add PSA reading"}
+          Add PSA reading
         </h3>
 
         <label className="block text-xs uppercase tracking-wider text-stone-500">Date</label>
@@ -156,17 +138,7 @@ export function PsaReadingDialog({
 
         {err && <p className="mt-3 text-xs text-rose-700">{err}</p>}
 
-        <div className="mt-5 flex items-center gap-2">
-          {initial?.id && onDelete && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="text-xs text-rose-700 hover:underline mr-auto"
-            >
-              Delete
-            </button>
-          )}
+        <div className="mt-5 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}

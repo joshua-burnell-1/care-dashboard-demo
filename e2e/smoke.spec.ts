@@ -57,11 +57,13 @@ test("an edit survives reload and reset restores it", async ({ page }) => {
   const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
     .map((n) => String(n).padStart(2, "0"))
     .join("-");
-  await page.getByRole("button", { name: "Enter edit mode" }).click();
+  await page.goto("/labs/psa");
   await page.getByRole("button", { name: "Add reading" }).click();
   await page.locator('input[type="date"]').fill(today);
   await page.locator('input[type="number"]').fill("0.142");
   await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("heading", { name: "Add PSA reading" })).toHaveCount(0);
+  await page.goto("/");
   await expect(heading).toContainText("PSA 0.142");
 
   await page.reload();

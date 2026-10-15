@@ -14,7 +14,6 @@ import { useEditHistory } from "@/hooks/useEditHistory";
 import { useLabResults } from "@/hooks/useLabResults";
 import { usePlanItems } from "@/hooks/usePlanItems";
 import { usePsaReadings } from "@/hooks/usePsaReadings";
-import { useAppSession } from "@/lib/appSession";
 import { changeWindowStart, changesSince } from "@/lib/changes";
 import { treatmentEvents } from "@/lib/events";
 import { formatDate, formatRelative } from "@/lib/format";
@@ -26,7 +25,6 @@ import {
   doublingBand,
   formatPsa,
 } from "@/lib/status";
-import { EditModeButton } from "@/features/shared/SectionUi";
 import {
   useSections,
   type OpenQuestion,
@@ -34,7 +32,6 @@ import {
   type TitledItem,
 } from "@/features/shared/sections";
 import { KpiTile } from "./KpiTile";
-import { PsaReadingsEditList } from "./PsaReadingsEditList";
 import { StatusLine } from "./StatusLine";
 import { UpNext } from "./UpNext";
 import { WhatChanged } from "./WhatChanged";
@@ -48,7 +45,6 @@ const DELTA_ICONS = { up: ArrowUpRight, down: ArrowDownRight, flat: Minus };
 const SCAN_LOOKAHEAD_DAYS = 45;
 
 export function TodayPage() {
-  const { editMode, setEditMode, openPsaReading } = useAppSession();
   const { items: psaReadings, loading: psaLoading } = usePsaReadings();
   const { items: planItems, loading: planLoading } = usePlanItems();
   const { items: labs } = useLabResults();
@@ -135,22 +131,19 @@ export function TodayPage() {
             eyebrow={eyebrow || undefined}
             asOf={latest?.date}
             actions={
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    openAssistant({
-                      label: "Today",
-                      prompt: `${status.headline} What does this mean, and what should we ask at the next visit?`,
-                    })
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors duration-200 ease-out hover:bg-secondary"
-                >
-                  <Sparkles size={14} aria-hidden />
-                  Ask about today
-                </button>
-                <EditModeButton editMode={editMode} onToggle={() => setEditMode((e) => !e)} />
-              </>
+              <button
+                type="button"
+                onClick={() =>
+                  openAssistant({
+                    label: "Today",
+                    prompt: `${status.headline} What does this mean, and what should we ask at the next visit?`,
+                  })
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors duration-200 ease-out hover:bg-secondary"
+              >
+                <Sparkles size={14} aria-hidden />
+                Ask about today
+              </button>
             }
           />
 
@@ -264,7 +257,6 @@ export function TodayPage() {
                   height={300}
                 />
               </div>
-              {editMode && <PsaReadingsEditList readings={psaReadings} onEdit={openPsaReading} />}
             </section>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

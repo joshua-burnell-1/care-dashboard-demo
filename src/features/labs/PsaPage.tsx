@@ -1,17 +1,24 @@
 // ABOUTME: /labs/psa: the full-size PSA timeline with a range selector, the latest value and doubling
-// ABOUTME: time with a plain explanation, and every reading in a table with an Add reading action.
+// ABOUTME: time with a plain explanation, and every reading in a list, edited in place, plus Add reading.
 import { useMemo } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plus, Sparkles } from "lucide-react";
 import { openAssistant } from "@/components/assistant/assistantStore";
 import { PsaTimelineChart } from "@/components/charts/PsaTimelineChart";
+import { InlineEdit, type InlineField } from "@/components/InlineEdit";
 import { MascotLoader } from "@/components/MascotLoader";
 import { Page } from "@/components/shell/Page";
 import { StatusChip } from "@/components/StatusChip";
 import { Button } from "@/components/ui/button";
 import { useSections, type PatientSection } from "@/features/shared/sections";
 import { usePlanItems } from "@/hooks/usePlanItems";
-import { usePsaReadings } from "@/hooks/usePsaReadings";
+import {
+  deletePsaReading,
+  savePsaReading,
+  usePsaReadings,
+  type PsaReading,
+} from "@/hooks/usePsaReadings";
+import { useUndoableSave } from "@/hooks/useUndoableSave";
 import { useAppSession } from "@/lib/appSession";
 import { treatmentEvents } from "@/lib/events";
 import { formatDate } from "@/lib/format";
@@ -19,6 +26,7 @@ import { postRadiationDoublingMonths } from "@/lib/psaDoubling";
 import {
   FAST_DOUBLING_MONTHS,
   MODERATE_DOUBLING_MONTHS,
+  PSA_PHASE_LABELS,
   PSA_READINESS_LINE,
   STATUS_LABELS,
   computeStatus,
@@ -40,18 +48,64 @@ const DEFAULT_RANGE: Range = "post-op";
 const inRange = (phase: string, range: Range) =>
   range === "all" || (range === "post-op" ? phase !== "pre-op" : phase === "post-rad");
 
-const PHASE_LABELS: Record<string, string> = {
-  "pre-op": "Before surgery",
-  "post-op": "After surgery",
-  "post-rad": "After radiation",
-};
+const READING_FIELDS: InlineField<PsaReading>[] = [
+  { name: "date", label: "Date", type: "date", required: true },
+  {
+    name: "value",
+    label: "PSA (ng/mL, blank if not drawn yet)",
+    type: "number",
+    parse: (text) => (text.trim() === "" ? null : Number(text)),
+  },
+  {
+    name: "phase",
+    label: "Phase",
+    type: "select",
+    options: Object.entries(PSA_PHASE_LABELS).map(([value, label]) => ({ value, label })),
+  },
+  { name: "note", label: "Note", maxLength: 500 },
+];
+
+const READING_COLUMNS = "md:[grid-template-columns:8rem_7rem_minmax(0,9rem)_minmax(0,1fr)_2.25rem]";
+
+function ReadingRow({ reading, pencil }: { reading: PsaReading; pencil: React.ReactNode }) {
+  const phase = PSA_PHASE_LABELS[reading.phase] ?? reading.phase;
+  return (
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 gap-y-1 md:items-start ${READING_COLUMNS}`}
+    >
+      <span className="text-sm text-muted tabular-nums md:pt-1.5">
+        {formatDate(reading.date)}
+        <span className="mt-0.5 block text-xs md:hidden">{phase}</span>
+      </span>
+      <span className="text-sm font-medium text-ink tabular-nums md:pt-1.5">
+        {reading.value != null ? (
+          formatPsa(reading.value)
+        ) : (
+          <span className="font-normal text-muted">Scheduled</span>
+        )}
+      </span>
+      <span className="hidden text-sm text-muted md:block md:pt-1.5">{phase}</span>
+      <span className="col-span-3 row-start-2 text-sm text-muted empty:hidden md:col-span-1 md:row-start-auto md:pt-1.5">
+        {reading.note}
+      </span>
+      <span className="col-start-3 row-start-1 md:col-start-auto">{pencil}</span>
+    </div>
+  );
+}
 
 export function PsaPage() {
   const { range: rangeParam } = useSearch({ from: "/labs/psa" });
   const navigate = useNavigate({ from: "/labs/psa" });
   const range = rangeParam ?? DEFAULT_RANGE;
-  const { openPsaReading } = useAppSession();
-  const { items, loading: psaLoading } = usePsaReadings();
+  const { password, openPsaReading } = useAppSession();
+  const { items, loading: psaLoading, refresh } = usePsaReadings();
+  // Saving the whole reading back is also how an edit is undone.
+  const write = async (reading: PsaReading) => {
+    const saved = await savePsaReading(password, reading);
+    await refresh();
+    return saved;
+  };
+  const saveReading = useUndoableSave(write, write);
   const { items: planItems, loading: planLoading } = usePlanItems();
   const { sec, loading: sectionsLoading } = useSections(["patient"]);
   const patient = sec<PatientSection>("patient", {});
@@ -266,47 +320,34 @@ export function PsaPage() {
             >
               Readings
             </h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-xs tracking-[0.08em] text-muted uppercase">
-                  <th scope="col" className="px-5 py-2.5 font-medium">
-                    Date
-                  </th>
-                  <th scope="col" className="px-3 py-2.5 font-medium">
-                    PSA (ng/mL)
-                  </th>
-                  <th scope="col" className="hidden px-3 py-2.5 font-medium sm:table-cell">
-                    Phase
-                  </th>
-                  <th scope="col" className="hidden px-5 py-2.5 font-medium md:table-cell">
-                    Note
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {table.map((r) => (
-                  <tr key={r.id} className="align-top">
-                    <td className="px-5 py-3 whitespace-nowrap text-muted tabular-nums">
-                      {formatDate(r.date)}
-                      <span className="mt-0.5 block text-xs sm:hidden">
-                        {PHASE_LABELS[r.phase] ?? r.phase}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 font-medium text-ink tabular-nums">
-                      {r.value != null ? (
-                        formatPsa(r.value)
-                      ) : (
-                        <span className="font-normal text-muted">Scheduled</span>
-                      )}
-                    </td>
-                    <td className="hidden px-3 py-3 text-muted sm:table-cell">
-                      {PHASE_LABELS[r.phase] ?? r.phase}
-                    </td>
-                    <td className="hidden px-5 py-3 text-muted md:table-cell">{r.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div
+              aria-hidden
+              className={`hidden gap-x-4 border-b border-line px-5 py-2.5 text-xs font-medium tracking-[0.08em] text-muted uppercase md:grid ${READING_COLUMNS}`}
+            >
+              <span>Date</span>
+              <span>PSA (ng/mL)</span>
+              <span>Phase</span>
+              <span>Note</span>
+            </div>
+            <ul className="divide-y divide-line">
+              {table.map((r) => (
+                <li key={r.id} data-psa-reading={r.date}>
+                  <InlineEdit
+                    value={r}
+                    fields={READING_FIELDS}
+                    subject={`PSA reading from ${formatDate(r.date)}`}
+                    onSave={saveReading}
+                    onDelete={async () => {
+                      await deletePsaReading(password, r.id);
+                      await refresh();
+                    }}
+                    className="px-5 py-2.5"
+                  >
+                    {(shown, pencil) => <ReadingRow reading={shown} pencil={pencil} />}
+                  </InlineEdit>
+                </li>
+              ))}
+            </ul>
           </section>
         </div>
       )}

@@ -3,16 +3,12 @@ import type { CareTeamMember } from "@/hooks/useCareTeam";
 
 export function CareTeamDialog({
   open,
-  initial,
   onClose,
   onSave,
-  onDelete,
 }: {
   open: boolean;
-  initial?: CareTeamMember | null;
   onClose: () => void;
   onSave: (item: Partial<CareTeamMember>) => Promise<void>;
-  onDelete?: (id: string) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -26,16 +22,16 @@ export function CareTeamDialog({
 
   useEffect(() => {
     if (open) {
-      setName(initial?.name ?? "");
-      setRole(initial?.role ?? "");
-      setWhereBased(initial?.where_based ?? "");
-      setNote(initial?.note ?? "");
-      setPhone(initial?.phone ?? "");
-      setEmail(initial?.email ?? "");
+      setName("");
+      setRole("");
+      setWhereBased("");
+      setNote("");
+      setPhone("");
+      setEmail("");
       setErr("");
       setTimeout(() => firstRef.current?.focus(), 0);
     }
-  }, [open, initial]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,32 +50,18 @@ export function CareTeamDialog({
     setErr("");
     try {
       await onSave({
-        id: initial?.id,
         name: name.trim(),
         role: role.trim(),
         where_based: whereBased.trim(),
         note: note.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        sort_index: initial?.sort_index ?? 0,
+        sort_index: 0,
       });
       onClose();
     } catch (e) {
       setErr((e as Error).message);
     } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!initial?.id || !onDelete) return;
-    if (!confirm("Remove this care team member?")) return;
-    setSaving(true);
-    try {
-      await onDelete(initial.id);
-      onClose();
-    } catch (e) {
-      setErr((e as Error).message);
       setSaving(false);
     }
   }
@@ -98,7 +80,7 @@ export function CareTeamDialog({
         className="w-full max-w-md bg-white rounded-2xl border border-stone-200 p-5 shadow-xl"
       >
         <h3 id="care-team-dialog-title" className="text-base font-semibold text-stone-900 mb-4">
-          {initial?.id ? "Edit care team member" : "Add care team member"}
+          Add care team member
         </h3>
 
         <label className="block text-xs uppercase tracking-wider text-stone-500">Name</label>
@@ -164,17 +146,7 @@ export function CareTeamDialog({
 
         {err && <p className="mt-3 text-xs text-rose-700">{err}</p>}
 
-        <div className="mt-5 flex items-center gap-2">
-          {initial?.id && onDelete && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="text-xs text-rose-700 hover:underline mr-auto"
-            >
-              Delete
-            </button>
-          )}
+        <div className="mt-5 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}

@@ -1,6 +1,6 @@
 // ABOUTME: The one layout around every routed page: skip link, desktop sidebar, top bar, main
-// ABOUTME: region and mobile tab bar, plus shell-wide state (password, Edit mode, tour, palette,
-// ABOUTME: assistant), the PSA reading dialog and the global shortcuts.
+// ABOUTME: region and mobile tab bar, plus shell-wide state (password, tour, palette, assistant),
+// ABOUTME: the Add PSA reading dialog and the global shortcuts.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { AssistantButton, AssistantPanel } from "@/components/assistant/AssistantPanel";
@@ -9,7 +9,7 @@ import { CommandPalette } from "@/components/command/CommandPalette";
 import { PsaReadingDialog } from "@/components/dashboard/PsaReadingDialog";
 import { Onboarding, hasCompletedOnboarding } from "@/components/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
-import { deletePsaReading, savePsaReading, type PsaReading } from "@/hooks/usePsaReadings";
+import { savePsaReading } from "@/hooks/usePsaReadings";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { AppSessionContext, type AppSession } from "@/lib/appSession";
 import { BRAND_NAME } from "@/lib/brand";
@@ -29,13 +29,9 @@ function anotherModalIsOpen(): boolean {
 }
 
 export function AppShell({ password, children }: { password: string; children: ReactNode }) {
-  const [editMode, setEditMode] = useState(false);
   const [showTour, setShowTour] = useState(() => !hasCompletedOnboarding());
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [psaDialog, setPsaDialog] = useState<{ open: boolean; initial: PsaReading | null }>({
-    open: false,
-    initial: null,
-  });
+  const [psaDialogOpen, setPsaDialogOpen] = useState(false);
   useSessionTimeout();
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -49,7 +45,7 @@ export function AppShell({ password, children }: { password: string; children: R
   // work everywhere, including inside inputs; nothing else is bound.
   // They do nothing while the tour, the PSA dialog or another modal is open, and a held key
   // does not repeat them.
-  const modalOpen = showTour || psaDialog.open;
+  const modalOpen = showTour || psaDialogOpen;
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const shortcut = shortcutFor(e);
@@ -68,14 +64,11 @@ export function AppShell({ password, children }: { password: string; children: R
   }, [modalOpen]);
 
   const openTour = useCallback(() => setShowTour(true), []);
-  const openPsaReading = useCallback(
-    (reading?: PsaReading | null) => setPsaDialog({ open: true, initial: reading ?? null }),
-    [],
-  );
+  const openPsaReading = useCallback(() => setPsaDialogOpen(true), []);
 
   const session = useMemo<AppSession>(
-    () => ({ password, editMode, setEditMode, openTour, openPsaReading }),
-    [password, editMode, openTour, openPsaReading],
+    () => ({ password, openTour, openPsaReading }),
+    [password, openTour, openPsaReading],
   );
 
   return (
@@ -105,17 +98,13 @@ export function AppShell({ password, children }: { password: string; children: R
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
           onTour={openTour}
-          onAddPsaReading={() => openPsaReading()}
+          onAddPsaReading={openPsaReading}
         />
         <PsaReadingDialog
-          open={psaDialog.open}
-          initial={psaDialog.initial}
-          onClose={() => setPsaDialog((d) => ({ ...d, open: false }))}
+          open={psaDialogOpen}
+          onClose={() => setPsaDialogOpen(false)}
           onSave={async (item) => {
             await savePsaReading(password, item);
-          }}
-          onDelete={async (id) => {
-            await deletePsaReading(password, id);
           }}
         />
 

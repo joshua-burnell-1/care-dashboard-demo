@@ -1,5 +1,5 @@
 // ABOUTME: The /team page: the care team as cards with Call, Email and an assistant question, and
-// ABOUTME: the daily medications and supplements, with the existing add and edit dialogs.
+// ABOUTME: the daily medications and supplements, edited in place with Undo; dialogs add new ones.
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { MascotLoader } from "@/components/MascotLoader";
@@ -18,6 +18,7 @@ import {
   deleteMedication,
   type MedicationItem,
 } from "@/hooks/useMedications";
+import { useUndoableSave } from "@/hooks/useUndoableSave";
 import { useAppSession } from "@/lib/appSession";
 import { mainContactId } from "./contact";
 import { MedicationsList } from "./MedicationsList";
@@ -51,18 +52,21 @@ export function TeamPage() {
   const { items: medications, loading: medsLoading, refresh: refreshMeds } = useMedications();
 
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
-  const [teamEditing, setTeamEditing] = useState<CareTeamMember | null>(null);
   const [medsDialogOpen, setMedsDialogOpen] = useState(false);
-  const [medsEditing, setMedsEditing] = useState<MedicationItem | null>(null);
 
-  function editMember(member: CareTeamMember | null) {
-    setTeamEditing(member);
-    setTeamDialogOpen(true);
-  }
-  function editMedication(item: MedicationItem | null) {
-    setMedsEditing(item);
-    setMedsDialogOpen(true);
-  }
+  // Saving the whole row back is also how an edit is undone.
+  const writeMember = async (member: CareTeamMember) => {
+    const saved = await saveCareTeamMember(password, member);
+    await refreshTeam();
+    return saved;
+  };
+  const saveMember = useUndoableSave(writeMember, writeMember);
+  const writeMedication = async (item: MedicationItem) => {
+    const saved = await saveMedication(password, item);
+    await refreshMeds();
+    return saved;
+  };
+  const saveMed = useUndoableSave(writeMedication, writeMedication);
 
   const mainContact = mainContactId(careTeam);
 
@@ -74,7 +78,7 @@ export function TeamPage() {
             id="care-team-heading"
             title="Care team"
             action={
-              <button type="button" onClick={() => editMember(null)} className={ADD_BUTTON}>
+              <button type="button" onClick={() => setTeamDialogOpen(true)} className={ADD_BUTTON}>
                 <Plus size={16} aria-hidden />
                 Add member
               </button>
@@ -90,7 +94,15 @@ export function TeamPage() {
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {careTeam.map((m) => (
                 <li key={m.id}>
-                  <MemberCard member={m} mainContact={m.id === mainContact} onEdit={editMember} />
+                  <MemberCard
+                    member={m}
+                    mainContact={m.id === mainContact}
+                    onSave={saveMember}
+                    onDelete={async (member) => {
+                      await deleteCareTeamMember(password, member.id);
+                      await refreshTeam();
+                    }}
+                  />
                 </li>
               ))}
             </ul>
@@ -102,7 +114,7 @@ export function TeamPage() {
             id="medications-heading"
             title="Medications & supplements"
             action={
-              <button type="button" onClick={() => editMedication(null)} className={ADD_BUTTON}>
+              <button type="button" onClick={() => setMedsDialogOpen(true)} className={ADD_BUTTON}>
                 <Plus size={16} aria-hidden />
                 Add medication
               </button>
@@ -111,34 +123,31 @@ export function TeamPage() {
           {medsLoading ? (
             <MascotLoader label="Loading medications…" />
           ) : (
-            <MedicationsList medications={medications} onEdit={editMedication} />
+            <MedicationsList
+              medications={medications}
+              onSave={saveMed}
+              onDelete={async (item) => {
+                await deleteMedication(password, item.id);
+                await refreshMeds();
+              }}
+            />
           )}
         </section>
       </div>
 
       <CareTeamDialog
         open={teamDialogOpen}
-        initial={teamEditing}
         onClose={() => setTeamDialogOpen(false)}
         onSave={async (item) => {
           await saveCareTeamMember(password, item);
           await refreshTeam();
         }}
-        onDelete={async (id) => {
-          await deleteCareTeamMember(password, id);
-          await refreshTeam();
-        }}
       />
       <MedicationDialog
         open={medsDialogOpen}
-        initial={medsEditing}
         onClose={() => setMedsDialogOpen(false)}
         onSave={async (item) => {
           await saveMedication(password, item);
-          await refreshMeds();
-        }}
-        onDelete={async (id) => {
-          await deleteMedication(password, id);
           await refreshMeds();
         }}
       />

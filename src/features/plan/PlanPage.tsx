@@ -1,11 +1,12 @@
 // ABOUTME: The /plan page: the timeline of visits and tasks (overdue, upcoming, ongoing, past)
-// ABOUTME: and the Decisions comparison, with the plan-item dialog for adding and editing.
+// ABOUTME: and the Decisions comparison. Rows edit in place with Undo; a dialog adds new items.
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { MascotLoader } from "@/components/MascotLoader";
 import { PlanItemDialog } from "@/components/dashboard/PlanItemDialog";
 import { Page } from "@/components/shell/Page";
 import { usePlanItems, savePlanItem, deletePlanItem, type PlanItem } from "@/hooks/usePlanItems";
+import { useUndoableSave } from "@/hooks/useUndoableSave";
 import { isoDaysFromToday } from "@/demo/dates";
 import { useAppSession } from "@/lib/appSession";
 import { splitTimeline } from "@/lib/plan";
@@ -29,17 +30,19 @@ export function PlanPage() {
   const { items, loading, refresh } = usePlanItems();
   const { sec } = useSections(SECTION_KEYS);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<PlanItem | null>(null);
+
+  // Saving the whole item back is also how an edit is undone.
+  const write = async (item: PlanItem) => {
+    const saved = await savePlanItem(password, item);
+    await refresh();
+    return saved;
+  };
+  const save = useUndoableSave(write, write);
 
   // Local calendar day, the same helper the seed uses, so plan dates compare correctly. Read on
   // every render (as the visit page does) so a page left open past midnight stays right.
   const today = isoDaysFromToday(0);
   const buckets = useMemo(() => splitTimeline(items, today), [items, today]);
-
-  function openEditor(item: PlanItem | null) {
-    setEditing(item);
-    setDialogOpen(true);
-  }
 
   return (
     <Page
@@ -49,7 +52,7 @@ export function PlanPage() {
       actions={
         <button
           type="button"
-          onClick={() => openEditor(null)}
+          onClick={() => setDialogOpen(true)}
           className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-ink px-3.5 text-sm font-medium text-paper transition-colors duration-200 ease-out hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           <Plus size={16} aria-hidden />
@@ -63,7 +66,15 @@ export function PlanPage() {
           {loading ? (
             <MascotLoader label="Loading plan…" />
           ) : (
-            <Timeline buckets={buckets} today={today} onEdit={openEditor} />
+            <Timeline
+              buckets={buckets}
+              today={today}
+              onSave={save}
+              onDelete={async (item) => {
+                await deletePlanItem(password, item.id);
+                await refresh();
+              }}
+            />
           )}
         </section>
 
@@ -80,14 +91,9 @@ export function PlanPage() {
 
       <PlanItemDialog
         open={dialogOpen}
-        initial={editing}
         onClose={() => setDialogOpen(false)}
         onSave={async (item) => {
           await savePlanItem(password, item);
-          await refresh();
-        }}
-        onDelete={async (id) => {
-          await deletePlanItem(password, id);
           await refresh();
         }}
       />

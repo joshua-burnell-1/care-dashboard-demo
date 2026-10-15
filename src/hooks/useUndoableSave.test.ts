@@ -5,7 +5,12 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), dismiss: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
-import { SAVE_TOAST_ID, useUndoableSave } from "./useUndoableSave";
+import {
+  SAVE_ERROR_TOAST_ID,
+  SAVE_TIMEOUT_MS,
+  SAVE_TOAST_ID,
+  useUndoableSave,
+} from "./useUndoableSave";
 
 type Med = { id: string; dose: string };
 const before: Med = { id: "m1", dose: "1,000 IU" };
@@ -39,6 +44,11 @@ describe("useUndoableSave", () => {
     expect(message).toBe("Saved");
     expect(options).toMatchObject({ id: SAVE_TOAST_ID, duration: 5000 });
     expect(options.action.label).toBe("Undo");
+
+    // Pressing the toast's Undo runs the revert with the value from before the edit.
+    await act(async () => options.action.onClick());
+    expect(revert).toHaveBeenCalledWith(before);
+    expect(save).toHaveBeenCalledTimes(1);
   });
 
   it("Undo calls revert with the previous value, once", async () => {
@@ -86,9 +96,10 @@ describe("useUndoableSave", () => {
       await expect(result.current(after, before)).rejects.toThrow("Invalid item name");
     });
     expect(toast.success).not.toHaveBeenCalled();
+    // In words, and under its own id so a later Saved toast cannot replace it.
     expect(toast.error).toHaveBeenCalledWith(
       "Could not save",
-      expect.objectContaining({ id: SAVE_TOAST_ID, description: "Invalid item name" }),
+      expect.objectContaining({ id: SAVE_ERROR_TOAST_ID, description: "Give it a name." }),
     );
   });
 
@@ -102,7 +113,10 @@ describe("useUndoableSave", () => {
     await act(async () => lastUndo()());
     expect(toast.error).toHaveBeenCalledWith(
       "Could not undo",
-      expect.objectContaining({ id: SAVE_TOAST_ID, description: "offline" }),
+      expect.objectContaining({
+        id: SAVE_ERROR_TOAST_ID,
+        description: "Something went wrong. Try again.",
+      }),
     );
   });
 
@@ -143,5 +157,40 @@ describe("useUndoableSave", () => {
     expect(order).toEqual(["save 2,000 IU", "save 3,000 IU"]);
     // Only the newest toast is live.
     expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up on a save that hangs, says so, and lets the next save run", async () => {
+    vi.useFakeTimers();
+    try {
+      const save = vi
+        .fn<(v: Med) => Promise<Med>>()
+        .mockImplementationOnce(() => new Promise<Med>(() => {}))
+        .mockImplementation(async (v) => v);
+      const revert = vi.fn(async () => undefined);
+      const { result } = renderHook(() => useUndoableSave(save, revert));
+
+      let hung!: Promise<void>;
+      let next!: Promise<void>;
+      act(() => {
+        hung = result.current(after, before);
+        next = result.current({ id: "m1", dose: "3,000 IU" }, after);
+      });
+      const hungResult = hung.catch((e: Error) => e);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SAVE_TIMEOUT_MS);
+      });
+      expect(await hungResult).toBeInstanceOf(Error);
+      expect(toast.error).toHaveBeenCalledWith(
+        "Could not save",
+        expect.objectContaining({ description: "That took too long. Try again." }),
+      );
+      await act(async () => {
+        await next;
+      });
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(toast.success).toHaveBeenCalledWith("Saved", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

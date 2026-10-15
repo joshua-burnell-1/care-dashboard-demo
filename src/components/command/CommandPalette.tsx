@@ -120,6 +120,8 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
         <DialogOverlay />
+        {/* One above its overlay: reopened during the close animation, Radix can mount a new
+            overlay after the still-mounted content, and at equal z-index it would cover it. */}
         <DialogPrimitive.Content
           onCloseAutoFocus={(e) => {
             if (skipRestoreFocus.current) {
@@ -131,7 +133,7 @@ export function CommandPalette({
             }
             skipRestoreFocus.current = false;
           }}
-          className="fixed top-[12vh] left-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-[20px] border border-line bg-surface text-ink shadow-xl duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+          className="fixed top-[12vh] left-1/2 z-[51] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-[20px] border border-line bg-surface text-ink shadow-xl duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
         >
           <DialogTitle className="sr-only">Command palette</DialogTitle>
           <DialogDescription className="sr-only">

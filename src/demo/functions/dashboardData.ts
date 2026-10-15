@@ -36,7 +36,13 @@ function upsertPsa(db: DemoDb, item: Body) {
   if (value !== null && isNaN(value)) return fail("Invalid value");
   if (!ALLOWED_PHASES.includes(phase)) return fail("Invalid phase");
 
-  const payload = { date, value, unit, phase, note, sort_index };
+  // The source document is written only when given, so an edit keeps the existing link.
+  const sourceDoc = item.source_document_id;
+  const payload: Row = { date, value, unit, phase, note, sort_index };
+  if (sourceDoc !== undefined) {
+    payload.source_document_id =
+      typeof sourceDoc === "string" && sourceDoc.length > 0 ? sourceDoc : null;
+  }
   if (item.id) return saveItem(db, "psa_readings", item, payload);
 
   // Upsert-by-date: update the existing reading for this date, otherwise insert.
@@ -147,14 +153,21 @@ function rollback(db: DemoDb, historyId: unknown) {
   const pk = table === "dashboard_sections" ? "key" : "id";
   const recordId = entry.record_id;
 
+  // A rollback that changes no row reports why instead of claiming success.
+  const exists = db.all(table).some((r) => r[pk] === recordId);
   if (operation === "DELETE" && oldData) {
     // Re-inserting a row whose key is taken is a unique-violation in Postgres.
-    if (db.all(table).some((r) => r[pk] === oldData[pk])) return fail("Restore failed");
+    if (db.all(table).some((r) => r[pk] === oldData[pk])) {
+      return fail("That item is already in the record");
+    }
     db.upsert(table, oldData);
   } else if (operation === "UPDATE" && oldData) {
-    patchRow(db, table, pk, recordId, oldData);
+    if (!patchRow(db, table, pk, recordId, oldData)) return fail("That item no longer exists");
   } else if (operation === "INSERT") {
+    if (!exists) return fail("That item no longer exists");
     db.remove(table, String(recordId));
+  } else {
+    return fail("Nothing to undo");
   }
   return ok();
 }

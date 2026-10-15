@@ -13,7 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
+import { SAVE_ERROR_TOAST_ID, SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
+import { humanError } from "@/lib/humanError";
 import { cn } from "@/lib/utils";
 
 export type InlineField<T> = {
@@ -82,9 +83,14 @@ export function InlineEdit<T extends object>({
   const pencilRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLElement | null>(null);
   const returnFocus = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const deleting = useRef(false);
   const formId = useId();
 
   const shown = pending ?? value;
+  // While a save is in flight the row cannot reopen, so every edit starts from the confirmed
+  // value: a save that then fails can never leak into the next edit.
+  const saving = pending !== null;
 
   useEffect(() => {
     if (editing) {
@@ -96,7 +102,8 @@ export function InlineEdit<T extends object>({
   }, [editing]);
 
   function open() {
-    setDraft(Object.fromEntries(fields.map((f) => [f.name, asText(f, shown)])));
+    if (saving) return;
+    setDraft(Object.fromEntries(fields.map((f) => [f.name, asText(f, value)])));
     setEditing(true);
   }
 
@@ -106,7 +113,7 @@ export function InlineEdit<T extends object>({
   }
 
   function commit() {
-    const prev = shown;
+    const prev = value;
     const next: Record<string, unknown> = { ...(prev as Record<string, unknown>) };
     for (const f of fields) {
       const text = draft[f.name] ?? "";
@@ -141,19 +148,41 @@ export function InlineEdit<T extends object>({
     e.currentTarget.requestSubmit();
   }
 
+  /**
+   * Where focus goes once this row is gone: the next row's pencil, else the previous row's, else
+   * the heading of the section it was in.
+   */
+  function focusAfterDelete(): () => void {
+    const root = rootRef.current;
+    const row = root?.closest("li") ?? root;
+    const pencils = [row?.nextElementSibling, row?.previousElementSibling]
+      .map((el) => el?.querySelector<HTMLElement>('button[aria-label^="Edit "]'))
+      .filter((el): el is HTMLElement => !!el);
+    const heading = row?.closest("section")?.querySelector<HTMLElement>("h2, h3");
+    return () => {
+      const target =
+        pencils.find((el) => el.isConnected) ?? (heading?.isConnected ? heading : null);
+      if (!target) return;
+      if (target === heading && !heading.hasAttribute("tabindex")) heading.tabIndex = -1;
+      target.focus();
+    };
+  }
+
   async function confirmDelete() {
     if (!onDelete) return;
+    deleting.current = true;
+    const refocus = focusAfterDelete();
     try {
       await onDelete();
       toast.success(`Removed ${subject}`, {
         id: SAVE_TOAST_ID,
         description: "You can undo this from Activity.",
       });
+      // After the dialog has handed focus back, so it does not land on the removed row.
+      setTimeout(refocus, 0);
     } catch (e) {
-      toast.error("Could not delete", {
-        id: SAVE_TOAST_ID,
-        description: e instanceof Error ? e.message : String(e),
-      });
+      deleting.current = false;
+      toast.error("Could not delete", { id: SAVE_ERROR_TOAST_ID, description: humanError(e) });
     }
   }
 
@@ -163,14 +192,20 @@ export function InlineEdit<T extends object>({
       type="button"
       onClick={open}
       aria-label={`Edit ${subject}`}
-      className={PENCIL}
+      aria-disabled={saving || undefined}
+      className={`${PENCIL} aria-disabled:cursor-progress`}
     >
       <Pencil size={14} aria-hidden />
     </button>
   );
 
   return (
-    <div className={cn("group/edit", className)} data-editing={editing || undefined}>
+    <div
+      ref={rootRef}
+      className={cn("group/edit", className)}
+      data-editing={editing || undefined}
+      data-saving={saving || undefined}
+    >
       {!editing ? (
         children(shown, pencil)
       ) : (
@@ -268,7 +303,13 @@ export function InlineEdit<T extends object>({
 
       {onDelete && (
         <AlertDialog open={confirming} onOpenChange={setConfirming}>
-          <AlertDialogContent className="rounded-[20px] border-line bg-surface sm:rounded-[20px]">
+          <AlertDialogContent
+            className="rounded-[20px] border-line bg-surface sm:rounded-[20px]"
+            // After a delete the row is gone, so focus moves on from it rather than back to it.
+            onCloseAutoFocus={(e) => {
+              if (deleting.current) e.preventDefault();
+            }}
+          >
             <AlertDialogHeader>
               <AlertDialogTitle className="font-display text-2xl font-normal text-ink">
                 Delete {subject}?

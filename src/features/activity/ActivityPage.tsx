@@ -9,18 +9,31 @@ import { MascotLoader } from "@/components/MascotLoader";
 import { Pagination } from "@/components/Pagination";
 import { Page } from "@/components/shell/Page";
 import { StatusChip } from "@/components/StatusChip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useEditHistory, type EditHistoryEntry } from "@/hooks/useEditHistory";
 import { notifyPsaReadingsChanged } from "@/hooks/usePsaReadings";
-import { SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
+import { SAVE_ERROR_TOAST_ID, SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ACTIVITY_FILTERS,
   describeEdit,
   filterForTable,
   groupByDay,
+  undoStates,
   type EditDescription,
+  type EntryUndo,
 } from "@/lib/activity";
 import { useAppSession } from "@/lib/appSession";
+import { humanError, invokeErrorText } from "@/lib/humanError";
 import { paginate } from "@/lib/labs";
 
 const PAGE_SIZE = 20;
@@ -33,56 +46,38 @@ const ICONS: Record<EditDescription["icon"], LucideIcon> = {
   delete: Trash2,
 };
 
-/*
- * Which rows were undone, and which rows are those undos, for this browser session. The log
- * itself does not record it, so another device does not see the "Undone" mark (the undo still
- * shows there as its own entry).
- */
-const UNDO_STORAGE_KEY = "tend-activity-undone";
-type UndoMarks = { undone: string[]; undos: string[] };
-
-function readMarks(): UndoMarks {
-  try {
-    const parsed = JSON.parse(sessionStorage.getItem(UNDO_STORAGE_KEY) ?? "null") as UndoMarks;
-    if (Array.isArray(parsed?.undone) && Array.isArray(parsed?.undos)) return parsed;
-  } catch {
-    // Storage blocked or unreadable: start with no marks.
-  }
-  return { undone: [], undos: [] };
-}
-
-function writeMarks(marks: UndoMarks) {
-  try {
-    sessionStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(marks));
-  } catch {
-    // Storage blocked: the marks last until the page closes.
-  }
-}
-
-/** A row can be undone unless it is an update or removal with nothing to put back. */
-const canUndo = (e: EditHistoryEntry) => e.operation === "INSERT" || e.old_data !== null;
-
 const control =
   "h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
+/** Why a row's Undo is held back, as a chip label. */
+const BLOCKED: Partial<Record<EntryUndo["state"], string>> = {
+  "changed-since": "Changed since",
+  "removed-since": "Removed since",
+};
+
 function ActivityRow({
   entry,
-  undone,
-  isUndo,
+  undo,
   busy,
   onUndo,
 }: {
   entry: EditHistoryEntry;
-  undone: boolean;
-  isUndo: boolean;
+  undo: EntryUndo;
   busy: boolean;
   onUndo: () => void;
 }) {
   const { title, detail, icon } = describeEdit(entry);
   const Icon = ICONS[icon];
   const area = filterForTable(entry.table_name)?.label;
+  const undone = undo.state === "undone";
+  const blocked = BLOCKED[undo.state];
+  const hintId = `undo-hint-${entry.id}`;
   return (
-    <li data-activity-row={entry.id} className="flex items-start gap-3 px-4 py-3.5 sm:px-5">
+    <li
+      data-activity-row={entry.id}
+      data-undo={undo.state}
+      className="flex items-start gap-3 px-4 py-3.5 sm:px-5"
+    >
       <span
         aria-hidden
         className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line text-ink"
@@ -95,13 +90,23 @@ function ActivityRow({
         </p>
         {detail && <p className="mt-0.5 text-sm text-muted">{detail}</p>}
         <p className="mt-1 text-xs text-muted">
-          {[area, isUndo ? "Undo of an earlier change" : null].filter(Boolean).join(" · ")}
+          {[area, undo.reverts ? "Undo of an earlier change" : null].filter(Boolean).join(" · ")}
+          {blocked && (
+            <>
+              {area || undo.reverts ? " · " : ""}
+              <span id={hintId}>Undo the newer change first</span>
+            </>
+          )}
         </p>
       </div>
       <div className="shrink-0 pt-0.5">
         {undone ? (
           <StatusChip level="neutral" label="Undone" />
-        ) : canUndo(entry) ? (
+        ) : blocked ? (
+          <span aria-describedby={hintId} title="Undo the newer change first">
+            <StatusChip level="neutral" label={blocked} />
+          </span>
+        ) : undo.state === "available" ? (
           <button
             type="button"
             onClick={onUndo}
@@ -144,11 +149,24 @@ export function ActivityPage() {
   const search = useSearch({ from: "/activity" });
   const navigate = useNavigate({ from: "/activity" });
   const { entries, loading, refresh } = useEditHistory(HISTORY_WINDOW);
-  const [marks, setMarks] = useState<UndoMarks>(readMarks);
   const [busy, setBusy] = useState<string | null>(null);
+  // Undoing an addition deletes the row, so it asks first, as Delete does.
+  const [confirming, setConfirming] = useState<EditHistoryEntry | null>(null);
+  const undo = useMemo(() => undoStates(entries), [entries]);
 
   const table = search.table ?? "";
   const filter = ACTIVITY_FILTERS.find((f) => f.value === table);
+
+  // An area the page does not know is dropped from the URL, replacing the history entry.
+  useEffect(() => {
+    if (table && !filter) {
+      void navigate({
+        search: (prev) => ({ ...prev, table: undefined, page: undefined }),
+        replace: true,
+        resetScroll: false,
+      });
+    }
+  }, [table, filter, navigate]);
 
   // Only areas that have entries are offered, plus whatever the URL already asks for.
   const filters = useMemo(() => {
@@ -178,49 +196,34 @@ export function ActivityPage() {
     void navigate({ search: { table: value || undefined, page: undefined }, resetScroll: false });
   }
 
-  function mark(next: UndoMarks) {
-    setMarks(next);
-    writeMarks(next);
+  function requestUndo(entry: EditHistoryEntry) {
+    if (entry.operation === "INSERT") setConfirming(entry);
+    else void rollback(entry);
   }
 
-  async function undo(entry: EditHistoryEntry) {
+  async function rollback(entry: EditHistoryEntry) {
     setBusy(entry.id);
     const { title } = describeEdit(entry);
     try {
       const { data, error } = await supabase.functions.invoke("dashboard-data", {
         body: { action: "rollback", password, history_id: entry.id },
       });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || "Undo failed");
+      if (error || !data?.ok) throw new Error(await invokeErrorText(data, error));
       if (entry.table_name === "psa_readings") notifyPsaReadingsChanged();
-      const fresh = await refresh();
-      // The rollback is itself a change, logged as the newest entry for the same record.
-      const known = new Set([...marks.undos, ...marks.undone, entry.id]);
-      const undoEntry = fresh.find(
-        (e) =>
-          e.table_name === entry.table_name && e.record_id === entry.record_id && !known.has(e.id),
-      );
-      mark({
-        undone: [...marks.undone, entry.id],
-        undos: undoEntry ? [...marks.undos, undoEntry.id] : marks.undos,
-      });
+      // The rollback is itself a change; the fresh log marks this row undone and shows it.
+      await refresh();
       toast.success("Undone", { id: SAVE_TOAST_ID, description: title });
     } catch (e) {
-      toast.error("Could not undo", {
-        id: SAVE_TOAST_ID,
-        description: e instanceof Error ? e.message : String(e),
-      });
+      toast.error("Could not undo", { id: SAVE_ERROR_TOAST_ID, description: humanError(e) });
     } finally {
       setBusy(null);
     }
   }
 
-  const undone = new Set(marks.undone);
-  const undos = new Set(marks.undos);
-
   return (
     <Page
       title="Activity"
-      description="Every change to the record, newest first. Any of them can be undone."
+      description="Every change to the record, newest first. Undo puts a change back."
       wide
     >
       {loading ? (
@@ -228,7 +231,7 @@ export function ActivityPage() {
       ) : entries.length === 0 ? (
         <EmptyState
           title="Nothing has changed yet"
-          body="Edits to the plan, the care team, medications and PSA readings appear here, and any of them can be undone."
+          body="Edits to the plan, the care team, medications and PSA readings appear here, each with an Undo."
         />
       ) : (
         <div className="space-y-5">
@@ -293,10 +296,9 @@ export function ActivityPage() {
                       <ActivityRow
                         key={e.id}
                         entry={e}
-                        undone={undone.has(e.id)}
-                        isUndo={undos.has(e.id)}
+                        undo={undo.get(e.id) ?? { state: "unavailable", reverts: false }}
                         busy={busy !== null}
-                        onUndo={() => void undo(e)}
+                        onUndo={() => requestUndo(e)}
                       />
                     ))}
                   </ul>
@@ -316,6 +318,31 @@ export function ActivityPage() {
           />
         </div>
       )}
+      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+        <AlertDialogContent className="rounded-[20px] border-line bg-surface sm:rounded-[20px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-2xl font-normal text-ink">
+              Undo this addition?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted">
+              {confirming ? `${describeEdit(confirming).title}. ` : ""}Undoing it removes it from
+              the record. You can undo that too.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl"
+              onClick={() => {
+                if (confirming) void rollback(confirming);
+                setConfirming(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Page>
   );
 }

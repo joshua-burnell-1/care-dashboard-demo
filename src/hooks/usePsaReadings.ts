@@ -12,6 +12,8 @@ export type PsaReading = {
   phase: string;
   note: string;
   sort_index: number;
+  /** The uploaded document this reading came from, when it was applied from one. */
+  source_document_id?: string | null;
   created_at: string;
   updated_at: string;
 };

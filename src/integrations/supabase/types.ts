@@ -386,6 +386,7 @@ export type Database = {
           note: string
           phase: string
           sort_index: number
+          source_document_id: string | null
           unit: string
           updated_at: string
           value: number | null
@@ -397,6 +398,7 @@ export type Database = {
           note?: string
           phase?: string
           sort_index?: number
+          source_document_id?: string | null
           unit?: string
           updated_at?: string
           value?: number | null
@@ -408,11 +410,20 @@ export type Database = {
           note?: string
           phase?: string
           sort_index?: number
+          source_document_id?: string | null
           unit?: string
           updated_at?: string
           value?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "psa_readings_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

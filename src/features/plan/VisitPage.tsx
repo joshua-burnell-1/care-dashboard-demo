@@ -100,7 +100,7 @@ export function VisitPage({ visitId }: { visitId: string }) {
             onSave={save}
             onDelete={async () => {
               await deletePlanItem(password, item.id);
-              await refresh();
+              // Leave first: refreshing here would flash "Visit not found" for the deleted item.
               void navigate({ to: "/plan" });
             }}
           >

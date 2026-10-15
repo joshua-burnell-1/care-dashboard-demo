@@ -294,6 +294,63 @@ export function describeEdit(entry: EditHistoryEntry): EditDescription {
   };
 }
 
+/**
+ * Whether a log entry can still be undone, judged from the log itself:
+ * - `available`: the record still reads as this change left it (nothing since, or every later
+ *   change was reverted).
+ * - `undone`: the record is back to how it was before this change.
+ * - `removed-since`: the record was deleted later.
+ * - `changed-since`: a later change that is not a revert of this one; undo that first.
+ * - `unavailable`: there is nothing to put back (an update logged without its old row).
+ */
+export type UndoState = "available" | "undone" | "removed-since" | "changed-since" | "unavailable";
+
+export type EntryUndo = {
+  state: UndoState;
+  /** This entry puts the record back the way it was before the previous change to it. */
+  reverts: boolean;
+};
+
+/** The fields two snapshots of a record are compared on: what people see, not timestamps. */
+function sameRecord(table: string, a: Row | null, b: Row | null): boolean {
+  if (a === null || b === null) return a === b;
+  const named = FIELD_NAMES[table];
+  const keys = named
+    ? Object.keys(named)
+    : [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => !IGNORED.has(k));
+  return keys.every((k) => JSON.stringify(a[k] ?? null) === JSON.stringify(b[k] ?? null));
+}
+
+/** Undo state for every entry, from the log newest first (as the Activity page reads it). */
+export function undoStates(entries: EditHistoryEntry[]): Map<string, EntryUndo> {
+  const result = new Map<string, EntryUndo>();
+  // Entries per record, newest first.
+  const byRecord = new Map<string, EditHistoryEntry[]>();
+  for (const e of entries) {
+    const key = `${e.table_name}:${e.record_id}`;
+    byRecord.set(key, [...(byRecord.get(key) ?? []), e]);
+  }
+  for (const history of byRecord.values()) {
+    const current = history[0];
+    history.forEach((e, i) => {
+      const table = e.table_name;
+      const previous = history[i + 1];
+      const reverts =
+        !!previous &&
+        sameRecord(table, e.new_data, previous.old_data) &&
+        sameRecord(table, e.old_data, previous.new_data);
+      let state: UndoState;
+      if (e.operation === "UPDATE" && e.old_data === null) state = "unavailable";
+      else if (i === 0 || sameRecord(table, current.new_data, e.new_data)) state = "available";
+      else if (sameRecord(table, current.new_data, e.old_data)) state = "undone";
+      else if (current.operation === "DELETE") state = "removed-since";
+      else state = "changed-since";
+      result.set(e.id, { state, reverts });
+    });
+  }
+  return result;
+}
+
 /** The Activity filter: a human name for one area of the record and the tables it covers. */
 export type ActivityFilter = { value: string; label: string; tables: string[] };
 

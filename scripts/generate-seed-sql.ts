@@ -27,6 +27,7 @@ export const TABLE_COLUMNS: Record<TableName, Column[]> = {
     "sort_index",
     "created_at",
     "updated_at",
+    "source_document_id",
   ].map((n) => col(n)),
   care_team_members: [
     "id",
@@ -120,13 +121,13 @@ const DEMO_ONLY_FIELDS: Partial<Record<TableName, string[]>> = {
 
 /** FK-safe insert order. edit_history goes last so the seeded history replaces trigger output. */
 const TABLE_ORDER: TableName[] = [
+  "documents",
   "psa_readings",
   "care_team_members",
   "medication_items",
   "kpi_cards",
   "plan_items",
   "dashboard_sections",
-  "documents",
   "lab_results",
   "chat_sessions",
   "chat_messages",

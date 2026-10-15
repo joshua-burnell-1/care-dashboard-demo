@@ -103,7 +103,13 @@ Deno.serve(async (req) => {
       if (value !== null && isNaN(value)) return json({ ok: false, error: "Invalid value" }, 400);
       if (!ALLOWED_PHASES.includes(phase)) return json({ ok: false, error: "Invalid phase" }, 400);
 
-      const payload = { date, value, unit, phase, note, sort_index };
+      // The source document is written only when given, so an edit keeps the existing link.
+      const sourceDoc = item.source_document_id;
+      const payload: Record<string, unknown> = { date, value, unit, phase, note, sort_index };
+      if (sourceDoc !== undefined) {
+        payload.source_document_id =
+          typeof sourceDoc === "string" && sourceDoc.length > 0 ? sourceDoc : null;
+      }
 
       if (item.id) {
         const r = await dbPatch(`psa_readings?id=eq.${item.id}`, payload);
@@ -354,17 +360,30 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: "Invalid table" }, 400);
       }
 
+      // A rollback that changes no row reports why instead of claiming success. Messages are
+      // written for people; the raw PostgREST error is never passed on.
+      const pkField = table_name === "dashboard_sections" ? "key" : "id";
+      const gone = json({ ok: false, error: "That item no longer exists" }, 404);
       if (operation === "DELETE" && old_data) {
         const r = await dbPost(table_name, old_data);
+        if (r.status === 409) {
+          return json({ ok: false, error: "That item is already in the record" }, 409);
+        }
         if (!r.ok) return json({ ok: false, error: "Restore failed" }, 500);
       } else if (operation === "UPDATE" && old_data) {
-        const pkField = table_name === "dashboard_sections" ? "key" : "id";
         const r = await dbPatch(`${table_name}?${pkField}=eq.${record_id}`, old_data);
         if (!r.ok) return json({ ok: false, error: "Restore failed" }, 500);
+        if (Array.isArray(r.data) && r.data.length === 0) return gone;
       } else if (operation === "INSERT") {
-        const pkField = table_name === "dashboard_sections" ? "key" : "id";
-        const r = await dbDelete(`${table_name}?${pkField}=eq.${record_id}`);
-        if (!r.ok) return json({ ok: false, error: "Delete failed" }, 500);
+        const res = await fetch(`${supabaseUrl}/rest/v1/${table_name}?${pkField}=eq.${record_id}`, {
+          method: "DELETE",
+          headers,
+        });
+        if (!res.ok) return json({ ok: false, error: "Delete failed" }, 500);
+        const deleted = await res.json();
+        if (Array.isArray(deleted) && deleted.length === 0) return gone;
+      } else {
+        return json({ ok: false, error: "Nothing to undo" }, 400);
       }
 
       return json({ ok: true });

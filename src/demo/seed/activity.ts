@@ -1,6 +1,7 @@
 // ABOUTME: Fictional activity rows: indexed documents, edit history, one chat
 // ABOUTME: conversation, and the single medical_cache row.
 
+import type { LabResult } from "@/hooks/useLabResults";
 import type { PsaReading } from "@/hooks/usePsaReadings";
 import type { CareTeamMember } from "@/hooks/useCareTeam";
 import type { MedicationItem } from "@/hooks/useMedications";
@@ -28,7 +29,16 @@ export type ActivityInputs = {
   summary: string[];
 };
 
-export function buildDocuments(today: Date, psaReadings: PsaReading[]): DocumentRow[] {
+/**
+ * The indexed documents. Each one also points the rows it reported back at itself, as applying
+ * an upload would: the PSA results at the latest reading, and every document at the labs drawn
+ * on the day it was collected.
+ */
+export function buildDocuments(
+  today: Date,
+  psaReadings: PsaReading[],
+  labResults: LabResult[],
+): DocumentRow[] {
   const latest = psaReadings[psaReadings.length - 1];
   const surgery = formatLongDate(isoDaysFromToday(TIMELINE.surgery, today));
   const radStart = formatLongDate(isoDaysFromToday(TIMELINE.radiationStart, today));
@@ -39,12 +49,17 @@ export function buildDocuments(today: Date, psaReadings: PsaReading[]): Document
     uploadedOffset: number;
     size: number;
     text: string;
+    /** The day the specimen was collected or the course ended. */
+    collected: string;
+    /** It reports the latest PSA reading. */
+    reportsLatestPsa?: boolean;
   }[] = [
     {
       name: "Surgical pathology report.pdf",
       slug: "surgical-pathology-report.pdf",
       uploadedOffset: -176,
       size: 184320,
+      collected: isoDaysFromToday(TIMELINE.surgery, today),
       text: `FICTIONAL SAMPLE DOCUMENT. Patient: ${PERSONA.fullName}. Specimen: radical prostatectomy with pelvic lymph node dissection, collected ${surgery} at ${PERSONA.primaryInstitution}. Diagnosis: prostatic adenocarcinoma, Gleason 3+4 = 7 (Grade Group 2), about 30% pattern 4. Stage pT3a N0, 0 of 15 nodes involved. Focal extraprostatic extension, left. Perineural invasion present. Surgical margin focally positive at the left posterolateral edge (1 mm). Seminal vesicles negative.`,
     },
     {
@@ -52,6 +67,7 @@ export function buildDocuments(today: Date, psaReadings: PsaReading[]): Document
       slug: "radiation-treatment-summary.pdf",
       uploadedOffset: -300,
       size: 142336,
+      collected: isoDaysFromToday(TIMELINE.radiationEnd, today),
       text: `FICTIONAL SAMPLE DOCUMENT. Patient: ${PERSONA.fullName}. Treating physician: Dr. Samuel Okafor, ${PERSONA.radiationInstitution}. Course: adjuvant radiation to the prostate bed, 35 fractions, started ${radStart} and completed ${radEnd}. Treatment was well tolerated. Mild bladder irritation resolved within weeks. Follow-up: PSA every 6 to 8 weeks with Dr. Priya Raman.`,
     },
     {
@@ -59,6 +75,8 @@ export function buildDocuments(today: Date, psaReadings: PsaReading[]): Document
       slug: "ultrasensitive-psa-results.pdf",
       uploadedOffset: -9,
       size: 96256,
+      collected: latest.date,
+      reportsLatestPsa: true,
       text: `FICTIONAL SAMPLE DOCUMENT. Patient: ${PERSONA.fullName}. Ultrasensitive PSA, collected ${formatLongDate(latest.date)}: ${latest.value} ng/mL. Prior values in sequence: ${psaReadings
         .filter((r) => r.phase === "post-rad")
         .slice(0, -1)
@@ -68,7 +86,7 @@ export function buildDocuments(today: Date, psaReadings: PsaReading[]): Document
         )} ng/mL. Reference for a patient after prostatectomy: undetectable (<0.01). Ordering physician: Dr. Priya Raman.`,
     },
   ];
-  return specs.map((s, i) => ({
+  const documents: DocumentRow[] = specs.map((s, i) => ({
     id: seedId("document", i + 1),
     name: s.name,
     mime_type: "application/pdf",
@@ -80,6 +98,12 @@ export function buildDocuments(today: Date, psaReadings: PsaReading[]): Document
     extracted_chars: s.text.length,
     extracted_text: s.text,
   }));
+  specs.forEach((spec, i) => {
+    const id = documents[i].id;
+    if (spec.reportsLatestPsa) latest.source_document_id = id;
+    for (const lab of labResults) if (lab.date === spec.collected) lab.source_document_id = id;
+  });
+  return documents;
 }
 
 export function buildEditHistory(today: Date, inputs: ActivityInputs): EditHistoryEntry[] {

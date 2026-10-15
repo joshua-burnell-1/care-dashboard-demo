@@ -23,6 +23,12 @@ it("inserts every non-empty table", () => {
 });
 it("orders documents before lab_results", () =>
   expect(sql.indexOf("public.documents ")).toBeLessThan(sql.indexOf("public.lab_results ")));
+it("orders documents before psa_readings, which can point at them", () =>
+  expect(sql.indexOf("public.documents ")).toBeLessThan(sql.indexOf("public.psa_readings ")));
+it("emits the seeded PSA and lab provenance", () => {
+  const psa = sql.slice(sql.indexOf("INSERT INTO public.psa_readings "));
+  expect(psa.slice(0, psa.indexOf(";"))).toMatch(/source_document_id/);
+});
 it("orders chat_sessions before chat_messages", () =>
   expect(sql.indexOf("public.chat_sessions ")).toBeLessThan(sql.indexOf("public.chat_messages ")));
 it("escapes single quotes", () =>

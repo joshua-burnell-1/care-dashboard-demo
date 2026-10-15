@@ -6,6 +6,7 @@ import {
   filterForTable,
   groupByDay,
   possessive,
+  undoStates,
   type ActivityFilter,
 } from "./activity";
 
@@ -249,5 +250,80 @@ describe("activity filters", () => {
     for (const table of Object.keys(ROWS)) expect(filterForTable(table)).toBeDefined();
     expect(filterForTable("psa_readings")!.label).toBe("Labs");
     expect(filterForTable("mystery")).toBeUndefined();
+  });
+});
+
+describe("undoStates", () => {
+  const med = ROWS.medication_items;
+  const dose = (d: string, extra: Row = {}) => ({ ...med, dose: d, ...extra });
+  let clock = 0;
+  /** A log entry for the Vitamin D3 row; build them oldest first, then reverse for the page. */
+  const log = (
+    operation: EditHistoryEntry["operation"],
+    oldData: Row | null,
+    newData: Row | null,
+  ): EditHistoryEntry => ({
+    ...entry("medication_items", operation, oldData, newData),
+    id: `e${++clock}`,
+    record_id: "m1",
+  });
+  const states = (...oldestFirst: EditHistoryEntry[]) => {
+    const map = undoStates([...oldestFirst].reverse());
+    return oldestFirst.map((e) => map.get(e.id)!);
+  };
+
+  it("leaves the only change to a record undoable", () => {
+    expect(states(log("UPDATE", dose("1"), dose("2")))).toEqual([
+      { state: "available", reverts: false },
+    ]);
+  });
+
+  it("marks a change undone once a later entry puts the record back, and that entry a revert", () => {
+    const [first, undo] = states(
+      log("UPDATE", dose("1"), dose("2")),
+      log("UPDATE", dose("2"), dose("1", { updated_at: "later" })),
+    );
+    expect(first).toEqual({ state: "undone", reverts: false });
+    expect(undo).toEqual({ state: "available", reverts: true });
+  });
+
+  it("clears the mark when the undo is itself undone", () => {
+    const [first, undo, redo] = states(
+      log("UPDATE", dose("1"), dose("2")),
+      log("UPDATE", dose("2"), dose("1")),
+      log("UPDATE", dose("1"), dose("2")),
+    );
+    expect(first.state).toBe("available");
+    expect(undo.state).toBe("undone");
+    expect(redo).toEqual({ state: "available", reverts: true });
+  });
+
+  it("guards a change that a later, different change built on", () => {
+    const [first, second] = states(
+      log("UPDATE", dose("1"), dose("2")),
+      log("UPDATE", dose("2"), dose("2", { purpose: "Bones" })),
+    );
+    expect(first.state).toBe("changed-since");
+    expect(second.state).toBe("available");
+  });
+
+  it("guards a change to a record that was removed later", () => {
+    const [first] = states(log("UPDATE", dose("1"), dose("2")), log("DELETE", dose("2"), null));
+    expect(first.state).toBe("removed-since");
+  });
+
+  it("treats an addition followed by its removal as undone, and a removal restored likewise", () => {
+    expect(states(log("INSERT", null, med), log("DELETE", med, null))[0].state).toBe("undone");
+    expect(states(log("DELETE", med, null), log("INSERT", null, med))[0].state).toBe("undone");
+  });
+
+  it("offers nothing to put back for an update logged without its old row", () => {
+    expect(states(log("UPDATE", null, med))[0].state).toBe("unavailable");
+  });
+
+  it("keeps records apart", () => {
+    const other = { ...log("UPDATE", dose("5"), dose("6")), record_id: "m2" };
+    const map = undoStates([other, log("UPDATE", dose("1"), dose("2"))].reverse());
+    expect([...map.values()].every((u) => u.state === "available")).toBe(true);
   });
 });

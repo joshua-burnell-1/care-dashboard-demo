@@ -104,6 +104,20 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         expect(d.extracted_text.length).toBeGreaterThan(0);
       }
     });
+    it("links the PSA results document to the reading and the labs drawn that day", () => {
+      const psaDoc = s.documents.find((d) => d.name === "Ultrasensitive PSA results.pdf")!;
+      const latest = s.psa_readings.at(-1)!;
+      expect(latest.source_document_id).toBe(psaDoc.id);
+      expect(s.psa_readings.slice(0, -1).every((r) => r.source_document_id === null)).toBe(true);
+      const linked = s.lab_results.filter((l) => l.source_document_id);
+      expect(linked.length).toBeGreaterThan(0);
+      expect(
+        linked.every((l) => l.date === latest.date && l.source_document_id === psaDoc.id),
+      ).toBe(true);
+      expect(
+        s.lab_results.filter((l) => l.date !== latest.date).every((l) => !l.source_document_id),
+      ).toBe(true);
+    });
     it("dates both specialist visits after the latest PSA draw", () => {
       const latest = s.psa_readings.at(-1)!.date;
       const rec = String(s.dashboard_sections.find((r) => r.key === "patient_record_md")!.content);

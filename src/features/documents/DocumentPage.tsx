@@ -20,16 +20,48 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteDocument, useDocuments } from "@/hooks/useDocuments";
 import { useLabResults, type LabResult } from "@/hooks/useLabResults";
-import { SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
+import { usePsaReadings, type PsaReading } from "@/hooks/usePsaReadings";
+import { SAVE_ERROR_TOAST_ID, SAVE_TOAST_ID } from "@/hooks/useUndoableSave";
 import { useAppSession } from "@/lib/appSession";
 import { documentKind, documentStatus, formatFileSize } from "@/lib/documents";
 import { formatDate, formatNumber } from "@/lib/format";
+import { humanError } from "@/lib/humanError";
 import { PSA_METRIC_SLUG, formatLabValue, labStatus, metricSlug } from "@/lib/labs";
+import { PSA_PHASE_LABELS, formatPsa } from "@/lib/status";
 
 /** Where a lab result lives: PSA has its own page, every other metric its metric page. */
 function labHref(metric: string): string {
   const slug = metricSlug(metric);
   return slug === PSA_METRIC_SLUG ? "/labs/psa" : `/labs/${slug}`;
+}
+
+const ITEM_LINK =
+  "group flex items-center gap-3 px-4 py-3 transition-colors duration-200 ease-out hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:px-5";
+
+function PsaItem({ reading }: { reading: PsaReading }) {
+  return (
+    <li>
+      <Link to="/labs/psa" className={ITEM_LINK}>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium text-ink">PSA reading</span>
+          <span className="block text-xs text-muted tabular-nums">
+            {[PSA_PHASE_LABELS[reading.phase] ?? reading.phase, formatDate(reading.date)].join(
+              " · ",
+            )}
+          </span>
+        </span>
+        <span className="text-sm whitespace-nowrap text-ink tabular-nums">
+          {reading.value != null ? formatPsa(reading.value) : "Scheduled"}
+          {reading.value != null && <span className="ml-1 text-xs text-muted">{reading.unit}</span>}
+        </span>
+        <ChevronRight
+          size={16}
+          aria-hidden
+          className="shrink-0 text-muted transition-transform duration-200 ease-out group-hover:translate-x-0.5"
+        />
+      </Link>
+    </li>
+  );
 }
 
 function ExtractedItem({ lab }: { lab: LabResult }) {
@@ -42,10 +74,7 @@ function ExtractedItem({ lab }: { lab: LabResult }) {
   });
   return (
     <li>
-      <Link
-        to={labHref(lab.metric)}
-        className="group flex items-center gap-3 px-4 py-3 transition-colors duration-200 ease-out hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:px-5"
-      >
+      <Link to={labHref(lab.metric)} className={ITEM_LINK}>
         <span className="min-w-0 flex-1">
           <span className="block font-medium text-ink">{lab.metric}</span>
           <span className="block text-xs text-muted tabular-nums">
@@ -74,6 +103,7 @@ export function DocumentPage({ docId }: { docId: string }) {
   const navigate = useNavigate();
   const { documents, loading } = useDocuments();
   const { items: labs, loading: labsLoading } = useLabResults();
+  const { items: psaReadings, loading: psaLoading } = usePsaReadings();
   const [showAll, setShowAll] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const doc = documents.find((d) => d.id === docId);
@@ -97,6 +127,8 @@ export function DocumentPage({ docId }: { docId: string }) {
   const fromDoc = labs
     .filter((l) => l.source_document_id === doc.id)
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const psaFromDoc = psaReadings.filter((r) => r.source_document_id === doc.id);
+  const itemCount = fromDoc.length + psaFromDoc.length;
   const text = doc.extracted_text?.trim() ?? "";
   const long = text.length > 600 || text.split("\n").length > 12;
 
@@ -106,10 +138,7 @@ export function DocumentPage({ docId }: { docId: string }) {
       toast.success(`Deleted ${doc!.name}`, { id: SAVE_TOAST_ID });
       void navigate({ to: "/documents" });
     } catch (e) {
-      toast.error("Could not delete", {
-        id: SAVE_TOAST_ID,
-        description: e instanceof Error ? e.message : String(e),
-      });
+      toast.error("Could not delete", { id: SAVE_ERROR_TOAST_ID, description: humanError(e) });
     }
   }
 
@@ -211,22 +240,24 @@ export function DocumentPage({ docId }: { docId: string }) {
             <h2 id="from-doc-heading" className="font-display text-2xl text-ink">
               What came from this document
             </h2>
-            {fromDoc.length > 0 && (
+            {itemCount > 0 && (
               <p className="mt-0.5 text-sm text-muted">
-                {fromDoc.length} {fromDoc.length === 1 ? "result was" : "results were"} added to
-                Labs from it.
+                {itemCount} {itemCount === 1 ? "item was" : "items were"} added to the record from
+                it.
               </p>
             )}
           </div>
-          {labsLoading ? (
+          {labsLoading || psaLoading ? (
             <p className="px-5 py-6 text-sm text-muted">Loading…</p>
-          ) : fromDoc.length === 0 ? (
+          ) : itemCount === 0 ? (
             <p className="px-5 py-6 text-sm text-muted">
-              Nothing in the record points back to this document yet. Lab results you apply from an
-              upload are listed here.
+              Nothing was added to the record from this document. It is kept for reference.
             </p>
           ) : (
             <ul className="divide-y divide-line">
+              {psaFromDoc.map((reading) => (
+                <PsaItem key={reading.id} reading={reading} />
+              ))}
               {fromDoc.map((lab) => (
                 <ExtractedItem key={lab.id} lab={lab} />
               ))}

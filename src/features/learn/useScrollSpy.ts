@@ -45,11 +45,19 @@ export function useScrollSpy(ids: string[]): { active: string; pin: (id: string)
 
     const inBand = new Set<string>();
 
-    // The one rule, run from both the observer and the scroll handler. The end of the page wins
+    // The one rule, run from both the observer and the scroll handler. The top of the page means
+    // the first section; otherwise the end of the page wins
     // (a short last section never reaches the band), then the newest section in the band, then
     // the last section whose top is above the band, so a gap between sections keeps the right one.
     const run = () => {
       if (Date.now() < pinnedUntil.current) return;
+      // At the very top the first section is the one being read. Without this, a later section
+      // can sit in the band for a moment while the page fills in, and the hash sync then writes
+      // it to the URL, which the router answers by scrolling there.
+      if (window.scrollY <= 0) {
+        setActive(list[0]);
+        return;
+      }
       const atBottom =
         window.scrollY > 0 &&
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;

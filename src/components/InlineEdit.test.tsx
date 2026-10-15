@@ -87,6 +87,28 @@ describe("InlineEdit", () => {
     expect(screen.getByTestId("dose").textContent).toBe("1,000 IU");
   });
 
+  it("starts every edit from the confirmed value, so a failed save never leaks into the next", async () => {
+    const first = deferred();
+    const onSave = vi.fn().mockReturnValueOnce(first.promise).mockResolvedValue(undefined);
+    render(<Row value={med} onSave={onSave} />);
+    const pencil = () => screen.getByRole("button", { name: "Edit Vitamin D3" });
+    fireEvent.click(pencil());
+    fireEvent.change(screen.getByLabelText("Dose"), { target: { value: "2,000 IU" } });
+    fireEvent.keyDown(screen.getByLabelText("Dose"), { key: "Enter" });
+
+    // While it saves, the row does not reopen.
+    fireEvent.click(pencil());
+    expect(screen.queryByLabelText("Dose")).toBeNull();
+
+    await act(async () => first.reject(new Error("offline")));
+    fireEvent.click(pencil());
+    expect(screen.getByLabelText("Dose")).toHaveProperty("value", "1,000 IU");
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Vitamin D" } });
+    fireEvent.keyDown(screen.getByLabelText("Name"), { key: "Enter" });
+    expect(onSave).toHaveBeenLastCalledWith({ ...med, item: "Vitamin D" }, med);
+    await act(async () => undefined);
+  });
+
   it("takes Enter as a new line in a text area, and Ctrl+Enter as Save", () => {
     const onSave = vi.fn(() => Promise.resolve());
     render(<Row value={med} onSave={onSave} />);

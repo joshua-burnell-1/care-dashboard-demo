@@ -173,6 +173,20 @@
   }
 }
 
+/*
+ * Where toasts sit: bottom center, above the phone tab bar and the floating Assistant button
+ * (which ends 7.75rem up), and clear of the home indicator. On desktop there is neither.
+ */
+:root {
+  --toast-offset-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
+  --toast-mobile-offset-bottom: calc(env(safe-area-inset-bottom) + 8.5rem);
+}
+@media (min-width: 1024px) {
+  :root {
+    --toast-offset-bottom: 1.5rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,

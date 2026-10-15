@@ -79,8 +79,35 @@ test.describe("documents", () => {
     await expect(details.locator('[data-status="stable"]')).toHaveText("Ready");
     await expect(page.locator("#document-text")).toContainText("FICTIONAL SAMPLE DOCUMENT");
     await expect(
-      page.getByText("Nothing in the record points back to this document"),
+      page.getByText(
+        "Nothing was added to the record from this document. It is kept for reference.",
+      ),
     ).toBeVisible();
+  });
+
+  test("seeded documents say what came from them, or that they are kept for reference", async ({
+    page,
+  }) => {
+    await ready(page, "/documents");
+    await expect(page.locator('[data-document-row="Surgical pathology report.pdf"]')).toContainText(
+      "Reference",
+    );
+    const psaDoc = page.locator('[data-document-row="Ultrasensitive PSA results.pdf"]');
+    await expect(psaDoc).toContainText(/\d+ items/);
+    await psaDoc.click();
+    const fromDoc = page.getByRole("region", { name: "What came from this document" });
+    await expect(fromDoc.getByRole("link", { name: /PSA reading/ })).toHaveAttribute(
+      "href",
+      "/labs/psa",
+    );
+    await expect(fromDoc.getByRole("link", { name: /Hemoglobin/ })).toBeVisible();
+  });
+
+  test("unknown type and area values are dropped from the URL", async ({ page }) => {
+    await ready(page, "/documents?type=bogus");
+    await expect(page).toHaveURL(/\/documents$/);
+    await ready(page, "/activity?table=bogus");
+    await expect(page).toHaveURL(/\/activity$/);
   });
 
   test("an unknown document id shows not-found", async ({ page }) => {
@@ -161,6 +188,16 @@ test.describe("editing in place", () => {
     await expect(row).toContainText("Same lab as last time");
   });
 
+  test("after deleting a row, focus moves to the next row's pencil", async ({ page }) => {
+    await ready(page, "/team");
+    await vitaminD(page).hover();
+    await page.getByRole("button", { name: "Edit Vitamin D3" }).click();
+    await vitaminD(page).getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+    await expect(vitaminD(page)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Edit Atorvastatin" })).toBeFocused();
+  });
+
   test("no page has a global Edit mode any more", async ({ page }) => {
     for (const path of ["/", "/team", "/plan", "/labs/psa", "/documents"]) {
       await ready(page, path);
@@ -186,6 +223,66 @@ test.describe("activity", () => {
 
     await ready(page, "/team");
     await expect(vitaminD(page)).toContainText("1,000 IU once daily");
+  });
+
+  test("an Undo from the toast shows as Undone in Activity", async ({ page }) => {
+    await ready(page, "/team");
+    await vitaminD(page).hover();
+    await page.getByRole("button", { name: "Edit Vitamin D3" }).click();
+    await vitaminD(page).getByLabel("Dose").fill("4,000 IU once daily");
+    await vitaminD(page).getByLabel("Dose").press("Enter");
+    await toast(page).getByRole("button", { name: "Undo" }).click();
+    await expect(vitaminD(page)).toContainText("2,000 IU once daily");
+
+    await ready(page, "/activity");
+    const edit = page.locator("[data-activity-row]", {
+      hasText: "2,000 IU once daily to 4,000 IU once daily",
+    });
+    await expect(edit.locator('[data-status="neutral"]')).toHaveText("Undone");
+    const revert = page.locator("[data-activity-row]", {
+      hasText: "4,000 IU once daily to 2,000 IU once daily",
+    });
+    await expect(revert).toContainText("Undo of an earlier change");
+  });
+
+  test("a change with a newer change on top cannot be undone until that one is", async ({
+    page,
+  }) => {
+    await ready(page, "/team");
+    for (const dose of ["5 IU", "6 IU"]) {
+      await vitaminD(page).hover();
+      await page.getByRole("button", { name: "Edit Vitamin D3" }).click();
+      await vitaminD(page).getByLabel("Dose").fill(dose);
+      await vitaminD(page).getByLabel("Dose").press("Enter");
+      await expect(vitaminD(page)).toContainText(dose);
+    }
+    await ready(page, "/activity");
+    const older = page.locator("[data-activity-row]", { hasText: "2,000 IU once daily to 5 IU" });
+    await expect(older.locator('[data-status="neutral"]')).toHaveText("Changed since");
+    await expect(older).toContainText("Undo the newer change first");
+    await expect(older.getByRole("button", { name: /^Undo/ })).toHaveCount(0);
+    // The seeded dose change is guarded too, since newer dose changes sit on top of it.
+    await expect(
+      page.locator("[data-activity-row]", { hasText: "Changed Vitamin D3 dose" }).last(),
+    ).toHaveAttribute("data-undo", "changed-since");
+
+    await page
+      .locator("[data-activity-row]", { hasText: "5 IU to 6 IU" })
+      .getByRole("button", { name: /^Undo/ })
+      .click();
+    await expect(older.getByRole("button", { name: /^Undo/ })).toBeVisible();
+  });
+
+  test("undoing an addition asks first, as Delete does", async ({ page }) => {
+    await ready(page, "/activity");
+    const added = page.locator("[data-activity-row]", {
+      hasText: "Added plan item: PSMA PET/CT scan",
+    });
+    await added.getByRole("button", { name: /^Undo/ }).click();
+    const confirm = page.getByRole("alertdialog", { name: "Undo this addition?" });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole("button", { name: "Remove" }).click();
+    await expect(added.locator('[data-status="neutral"]')).toHaveText("Undone");
   });
 
   test("the area filter uses human names and lives in the URL", async ({ page }) => {

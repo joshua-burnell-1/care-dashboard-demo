@@ -12,6 +12,7 @@ import { isDemoMode } from "@/demo/isDemoMode";
 import { SAMPLE_DOCUMENTS } from "@/demo/samples";
 import { useDocuments, type Document } from "@/hooks/useDocuments";
 import { useLabResults } from "@/hooks/useLabResults";
+import { usePsaReadings } from "@/hooks/usePsaReadings";
 import { useAppSession } from "@/lib/appSession";
 import { DOCUMENT_KINDS, documentKind, documentStatus, filterDocuments } from "@/lib/documents";
 import { formatDate } from "@/lib/format";
@@ -24,8 +25,9 @@ const PAGE_SIZE = 10;
 const control =
   "h-10 rounded-xl border border-line bg-surface px-3 text-sm text-ink transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
+/** What came from a document, or "Reference" for one kept only to read. */
 function itemsLabel(n: number) {
-  return n === 0 ? "No items" : `${n} ${n === 1 ? "item" : "items"}`;
+  return n === 0 ? "Reference" : `${n} ${n === 1 ? "item" : "items"}`;
 }
 
 function DocumentRow({ doc, items }: { doc: Document; items: number }) {
@@ -97,6 +99,7 @@ export function DocumentsPage() {
   const navigate = useNavigate({ from: "/documents/" });
   const { documents, loading, refresh } = useDocuments();
   const { items: labs } = useLabResults();
+  const { items: psaReadings } = usePsaReadings();
   const [review, setReview] = useState<PendingSuggestions | null>(null);
 
   const { uploading, healthIssues, uploadFiles, trySample } = useDocumentUpload({
@@ -107,6 +110,18 @@ export function DocumentsPage() {
 
   const q = search.q ?? "";
   const kind = search.type ?? "";
+
+  // A type the page does not know is dropped from the URL, replacing the history entry.
+  const knownKind = !kind || DOCUMENT_KINDS.some((k) => k.value === kind);
+  useEffect(() => {
+    if (!knownKind) {
+      void navigate({
+        search: (prev) => ({ ...prev, type: undefined, page: undefined }),
+        replace: true,
+        resetScroll: false,
+      });
+    }
+  }, [knownKind, navigate]);
 
   // The box holds what was typed; the URL follows it, and follows back and forward too.
   const [typed, setTyped] = useState(q);
@@ -140,13 +155,13 @@ export function DocumentsPage() {
 
   const itemCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const l of labs) {
-      if (l.source_document_id) {
-        counts.set(l.source_document_id, (counts.get(l.source_document_id) ?? 0) + 1);
+    for (const row of [...labs, ...psaReadings]) {
+      if (row.source_document_id) {
+        counts.set(row.source_document_id, (counts.get(row.source_document_id) ?? 0) + 1);
       }
     }
     return counts;
-  }, [labs]);
+  }, [labs, psaReadings]);
 
   const filtered = useMemo(() => filterDocuments(documents, { q, kind }), [documents, q, kind]);
   const paged = useMemo(() => paginate(filtered, search.page ?? 1, PAGE_SIZE), [filtered, search]);

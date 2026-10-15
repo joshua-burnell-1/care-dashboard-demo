@@ -10,7 +10,7 @@ import type { SeedData } from "./types";
 export type { SeedData, TableName } from "./types";
 
 /** Bump when the seed changes shape so stored demo databases reset. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 export function buildSeed(today: Date = new Date()): SeedData {
   const psa_readings = buildPsaReadings(today);
@@ -29,7 +29,7 @@ export function buildSeed(today: Date = new Date()): SeedData {
   });
   const summary = dashboard_sections.find((s) => s.key === "summary")!.content as string[];
 
-  const documents = buildDocuments(today, psa_readings);
+  const documents = buildDocuments(today, psa_readings, lab_results);
   const activityInputs = {
     psaReadings: psa_readings,
     careTeam: care_team_members,

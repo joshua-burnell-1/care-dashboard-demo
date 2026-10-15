@@ -7,6 +7,7 @@ import { DEMO_DOCUMENT_TEXT_LIMIT } from "@/demo/limits";
 import type { SampleDocument } from "@/demo/samples";
 import { supabase } from "@/integrations/supabase/client";
 import { formatNumber } from "@/lib/format";
+import { humanError } from "@/lib/humanError";
 import { maybeResizeImage } from "@/lib/resizeImage";
 
 export const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.docx,.xlsx,.csv";
@@ -47,12 +48,16 @@ const CHECK_LABELS: Record<string, string> = {
 
 type IngestError = { code?: string; message?: string; hint?: string | null };
 
-function ingestError(payload: unknown, fallback: string): Error & { hint: string | null } {
+/**
+ * The ingest function's own message (written for people, with a hint) when it sent one; any
+ * other failure is put in words by humanError, so raw server text never shows.
+ */
+function ingestError(payload: unknown, cause: unknown): Error & { hint: string | null } {
   const e = (payload as { error?: IngestError | string } | null)?.error;
-  if (e && typeof e === "object") {
-    return Object.assign(new Error(e.message ?? fallback), { hint: e.hint ?? null });
+  if (e && typeof e === "object" && e.message) {
+    return Object.assign(new Error(e.message), { hint: e.hint ?? null });
   }
-  return Object.assign(new Error(typeof e === "string" ? e : fallback), { hint: null });
+  return Object.assign(new Error(humanError(typeof e === "string" ? e : cause)), { hint: null });
 }
 
 function countUpdates(u: SuggestedUpdates): number {
@@ -134,7 +139,7 @@ export function useDocumentUpload({
           },
         );
         if (urlErr || !urlData?.ok) {
-          throw ingestError(urlData, urlErr?.message ?? "Could not start the upload");
+          throw ingestError(urlData, urlErr);
         }
 
         // The demo keeps files in the browser: skip storage and send the text of text files.
@@ -150,7 +155,7 @@ export function useDocumentUpload({
             headers: { "Content-Type": prepared.type || "application/octet-stream" },
             body: prepared,
           });
-          if (!put.ok) throw new Error(`The file could not be stored (${put.status})`);
+          if (!put.ok) throw new Error("The file could not be stored. Try again.");
         }
 
         const { data: procData, error: procErr } = await supabase.functions.invoke(
@@ -169,7 +174,7 @@ export function useDocumentUpload({
           },
         );
         if (procErr || !procData?.ok) {
-          throw ingestError(procData, procErr?.message ?? "The document could not be read");
+          throw ingestError(procData, procErr);
         }
 
         onUploaded();

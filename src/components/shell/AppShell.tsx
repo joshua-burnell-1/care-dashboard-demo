@@ -108,7 +108,12 @@ export function AppShell({ password, children }: { password: string; children: R
           }}
         />
 
-        <Toaster richColors position="bottom-right" />
+        <Toaster
+          richColors
+          position="bottom-center"
+          offset={{ bottom: "var(--toast-offset-bottom)" }}
+          mobileOffset={{ bottom: "var(--toast-mobile-offset-bottom)" }}
+        />
         {showTour && <Onboarding onDone={() => setShowTour(false)} />}
       </div>
     </AppSessionContext.Provider>

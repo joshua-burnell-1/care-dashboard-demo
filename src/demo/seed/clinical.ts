@@ -39,6 +39,8 @@ export function buildPsaReadings(today: Date): PsaReading[] {
     phase,
     note,
     sort_index: i,
+    // buildDocuments points the latest reading at the PSA results document.
+    source_document_id: null,
     created_at: timestampDaysFromToday(offset, today),
     updated_at:
       i === PSA_SPECS.length - 1

@@ -71,6 +71,20 @@ describe("dashboard-data", () => {
     expect(db.all("psa_readings")).toHaveLength(before);
   });
 
+  it("stores a PSA reading's source document, and an edit without one keeps it", async () => {
+    const doc = db.all("documents")[0];
+    const res = (await dash({
+      action: "upsert-psa",
+      item: { date: "2026-10-02", value: 0.2, source_document_id: doc.id },
+    })) as { item: { id: string } };
+    expect(db.all("psa_readings").find((r) => r.id === res.item.id)?.source_document_id).toBe(
+      doc.id,
+    );
+    await dash({ action: "upsert-psa", item: { id: res.item.id, date: "2026-10-02", value: 0.3 } });
+    const edited = db.all("psa_readings").find((r) => r.id === res.item.id)!;
+    expect(edited).toMatchObject({ value: 0.3, source_document_id: doc.id });
+  });
+
   it("validates the PSA date and phase", async () => {
     expect(await dash({ action: "upsert-psa", item: { date: "10/01/2026" } })).toEqual({
       ok: false,
@@ -200,6 +214,41 @@ describe("dashboard-data", () => {
     expect(await dash({ action: "rollback", history_id: entry.id })).toEqual({ ok: true });
     expect(db.all("medication_items").find((r) => r.id === row.id)).toMatchObject({
       item: row.item,
+    });
+  });
+
+  it("rollback that would change no row says so instead of succeeding", async () => {
+    const row = db.all("medication_items")[0];
+    await dash({ action: "upsert-medication", item: { ...row, dose: "9 mg" } });
+    const update = db
+      .all("edit_history")
+      .find((e) => e.operation === "UPDATE" && e.record_id === row.id && e.new_data)!;
+    await dash({ action: "delete-medication", id: row.id });
+    expect(await dash({ action: "rollback", history_id: update.id })).toEqual({
+      ok: false,
+      error: "That item no longer exists",
+    });
+
+    const added = (await dash({
+      action: "upsert-medication",
+      item: { item: "Zinc" },
+    })) as { item: { id: string } };
+    const insert = db
+      .all("edit_history")
+      .find((e) => e.operation === "INSERT" && e.record_id === added.item.id)!;
+    await dash({ action: "delete-medication", id: added.item.id });
+    expect(await dash({ action: "rollback", history_id: insert.id })).toEqual({
+      ok: false,
+      error: "That item no longer exists",
+    });
+
+    const del = db
+      .all("edit_history")
+      .find((e) => e.operation === "DELETE" && e.record_id === row.id)!;
+    expect(await dash({ action: "rollback", history_id: del.id })).toEqual({ ok: true });
+    expect(await dash({ action: "rollback", history_id: del.id })).toEqual({
+      ok: false,
+      error: "That item is already in the record",
     });
   });
 

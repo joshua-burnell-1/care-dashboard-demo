@@ -15,6 +15,7 @@ import { notifyPsaReadingsChanged } from "@/hooks/usePsaReadings";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/format";
 import { FLAG_LABELS, normalizeFlag } from "@/lib/labs";
+import { PSA_PHASE_LABELS } from "@/lib/status";
 
 export interface SuggestedPsa {
   date: string;
@@ -176,7 +177,11 @@ export function SuggestionsModal({
       if (!psaSel[i]) continue;
       await tryUpsert(`PSA ${day(psa[i].date) || psa[i].date}`, () =>
         supabase.functions.invoke("dashboard-data", {
-          body: { action: "upsert-psa", password, item: psa[i] },
+          body: {
+            action: "upsert-psa",
+            password,
+            item: { ...psa[i], source_document_id: documentId },
+          },
         }),
       );
     }
@@ -287,6 +292,12 @@ export function SuggestionsModal({
                 <>
                   {sep}
                   <span className="tabular-nums">{day(r.date)}</span>
+                </>
+              )}
+              {r.phase && (
+                <>
+                  {sep}
+                  {PSA_PHASE_LABELS[r.phase] ?? r.phase}
                 </>
               )}
               {r.note && (

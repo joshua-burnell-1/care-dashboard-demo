@@ -64,7 +64,7 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         expect(q.text.endsWith("?")).toBe(true);
       }
     });
-    it("has all 12 dashboard section keys", () => {
+    it("has all 13 dashboard section keys", () => {
       for (const k of [
         "patient",
         "summary",
@@ -78,6 +78,7 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         "pathology_features",
         "doubling_bands",
         "glossary",
+        "open_questions",
       ])
         expect(s.dashboard_sections.some((r) => r.key === k)).toBe(true);
     });

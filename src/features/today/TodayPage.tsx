@@ -87,6 +87,7 @@ export function TodayPage() {
     latestPsa: latest?.value ?? null,
     doublingMonths,
     readinessLine: PSA_READINESS_LINE,
+    readings: valued,
     nextStep: next ? { title: next.title, date: next.event_date! } : null,
   });
 
@@ -109,12 +110,16 @@ export function TodayPage() {
   );
 
   const sparkValues = valued.filter((r) => r.phase === "post-rad").map((r) => r.value);
-  const delta = valued.length ? computeDelta(valued) : null;
+  const delta = computeDelta(valued);
   const previous = valued.at(-2);
   const DeltaIcon = delta ? DELTA_ICONS[delta.direction] : Minus;
 
+  // Only questions for visits still ahead count as open; the first such visit is where they link.
+  const upcomingQuestions = upcoming.flatMap((visit) =>
+    questions.filter((q) => q.visit_id === visit.id),
+  );
   const nextVisitQuestions = next ? questions.filter((q) => q.visit_id === next.id).length : 0;
-  const questionsVisit = questions[0]?.visit_id ?? next?.id;
+  const questionsVisit = upcomingQuestions[0]?.visit_id ?? next?.id;
 
   const loading = psaLoading || planLoading || sectionsLoading;
   const eyebrow = [patient.name, patient.diagnosis].filter(Boolean).join(" · ");
@@ -152,24 +157,26 @@ export function TodayPage() {
           <div className="mt-8 space-y-6 lg:mt-10">
             <section
               aria-label="Key numbers"
-              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
             >
               <KpiTile
                 label="Latest PSA"
                 to="/labs/psa"
                 value={latest ? formatPsa(latest.value) : "None"}
                 unit={latest ? "ng/mL" : undefined}
-                aside={<Sparkline values={sparkValues} />}
+                aside={<Sparkline values={sparkValues} width={88} />}
                 footer={
                   delta?.change != null && previous ? (
-                    <span className="inline-flex items-center gap-1 text-ink">
+                    <span className="flex flex-wrap items-center gap-x-1 text-ink">
                       <DeltaIcon size={14} aria-hidden />
                       <span className="tabular-nums">
                         {delta.direction === "flat"
                           ? "No change"
                           : `${delta.direction === "up" ? "Up" : "Down"} ${formatPsa(Math.abs(delta.change))}`}
                       </span>
-                      <span className="text-muted">since {formatDate(previous.date)}</span>
+                      <span className="whitespace-nowrap text-muted">
+                        since {formatDate(previous.date)}
+                      </span>
                     </span>
                   ) : latest ? (
                     `Drawn ${formatDate(latest.date)}`
@@ -204,7 +211,7 @@ export function TodayPage() {
                 footer={
                   next ? (
                     <>
-                      <span className="block truncate text-ink">{next.title}</span>
+                      <span className="line-clamp-2 text-ink">{next.title}</span>
                       <span className="tabular-nums">{formatDate(next.event_date!)}</span>
                     </>
                   ) : (
@@ -215,12 +222,12 @@ export function TodayPage() {
               <KpiTile
                 label="Open questions"
                 to={questionsVisit ? `/plan/${questionsVisit}` : "/plan"}
-                value={questions.length}
+                value={upcomingQuestions.length}
                 unit="to ask"
                 footer={
                   next && nextVisitQuestions > 0
                     ? `${nextVisitQuestions} for the visit on ${formatDate(next.event_date!)}`
-                    : questions.length
+                    : upcomingQuestions.length
                       ? "Written down for upcoming visits"
                       : "None written down yet"
                 }

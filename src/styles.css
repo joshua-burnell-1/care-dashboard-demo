@@ -27,7 +27,7 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: var(--radius); /* controls: 12px */
   --radius-2xl: var(--radius-card);
   --radius-3xl: calc(var(--radius-card) + 4px);
   --radius-4xl: calc(var(--radius-card) + 8px);

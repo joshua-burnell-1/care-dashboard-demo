@@ -148,8 +148,8 @@ describe("changesSince", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       kind: "edit",
-      title: "3 edits to the record",
-      detail: "Medication, Plan item",
+      title: "3 updates to the record",
+      detail: "2 medications and the plan",
       date: "2026-10-12T10:00:00Z",
       to: "/activity",
     });
@@ -176,6 +176,18 @@ describe("changesSince", () => {
     });
     expect(items.map((i) => i.kind)).toEqual(["edit", "document", "psa", "lab"]);
     expect(items.find((i) => i.kind === "psa")!.title).toBe("New PSA: 0.11 ng/mL");
+    // Human words, never raw table names.
+    expect(items[0].title).toBe("5 updates to the record");
+    expect(items[0].detail).toBe("The summary, the care team, a medication and 2 more");
+  });
+
+  it("names a single section edit by the section, not the table", () => {
+    const e = edit("e1", "2026-10-12T10:00:00Z", "dashboard_sections");
+    const [item] = changesSince("2026-10-01", {
+      ...empty,
+      edits: [{ ...e, record_id: "summary" }],
+    });
+    expect(item.title).toBe("Summary updated");
   });
 });
 

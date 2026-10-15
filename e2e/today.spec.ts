@@ -19,7 +19,7 @@ test.describe("desktop", () => {
   }) => {
     await openToday(page);
     const main = page.locator("main");
-    await expect(main.locator("header [data-status]")).toHaveText("Needs attention");
+    await expect(main.locator("header [data-status]")).toHaveText("Keep watching");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("PSA 0.11 and rising");
     await expect(main.locator("[data-kpi]")).toHaveCount(4);
     for (const label of ["Latest PSA", "Doubling time", "Next visit", "Open questions"]) {
@@ -85,12 +85,16 @@ test.describe("desktop", () => {
 test.describe("mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("tiles stack one per row and nothing scrolls sideways", async ({ page }) => {
+  test("tiles sit two by two and nothing scrolls sideways", async ({ page }) => {
     await openToday(page);
-    const lefts = await page
-      .locator("main [data-kpi]")
-      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)));
-    expect(new Set(lefts).size).toBe(1);
+    const boxes = await page.locator("main [data-kpi]").evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { left: Math.round(r.left), top: Math.round(r.top) };
+      }),
+    );
+    expect(new Set(boxes.map((b) => b.left)).size).toBe(2);
+    expect(new Set(boxes.map((b) => b.top)).size).toBe(2);
     const width = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(width).toBeLessThanOrEqual(390);
   });

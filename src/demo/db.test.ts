@@ -44,6 +44,12 @@ describe("DemoDb", () => {
     expect(db2.all("kpi_cards").find((k) => k.id === row.id)?.label).toBe("Demo KPI");
   });
 
+  it("removes copies stored by earlier seed versions", () => {
+    storage.setItem("care_demo_db_v1", "{}");
+    new DemoDb(seed, storage);
+    expect(storage.getItem("care_demo_db_v1")).toBeNull();
+  });
+
   it("works without storage", () => {
     const db = new DemoDb(seed, null);
     db.upsert("kpi_cards", { label: "x" });

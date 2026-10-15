@@ -74,6 +74,7 @@ export class DemoDb {
     private readonly clock: () => Date = () => new Date(),
   ) {
     this.seededOn = this.todayIso();
+    this.dropOldVersions();
     this.state = this.load() ?? seedFactory(this.clock());
   }
 
@@ -181,6 +182,15 @@ export class DemoDb {
     );
     this.persist(moved);
     return moved;
+  }
+
+  /** Earlier seed versions are never read again, so their stored copies only take up space. */
+  private dropOldVersions(): void {
+    try {
+      for (let v = 1; v < SEED_VERSION; v++) this.storage?.removeItem(`care_demo_db_v${v}`);
+    } catch {
+      // Storage blocked: nothing to clean up.
+    }
   }
 
   private persist(tables: SeedData): void {

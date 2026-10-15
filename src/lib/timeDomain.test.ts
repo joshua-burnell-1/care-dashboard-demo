@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { buildSeed } from "@/demo/seed";
 import { formatDate } from "./format";
-import { dateToTime, layoutEventLabels, niceTicks, timeToIso, toTimeDomain } from "./timeDomain";
+import {
+  dateToTime,
+  layoutEventLabels,
+  niceTicks,
+  timeToIso,
+  toTimeDomain,
+  withGaps,
+} from "./timeDomain";
 
 const pt = (date: string, value: number | null) => ({ date, value });
 
@@ -73,6 +80,23 @@ describe("layoutEventLabels", () => {
     expect(rows).toEqual([0, 1, 0]);
   });
 
+  it("lays out labels in time order whatever order they arrive in", () => {
+    const rows = layoutEventLabels(
+      [dateToTime("2025-09-01"), dateToTime("2025-03-10"), dateToTime("2025-03-01")],
+      domain,
+    ).map((l) => l.row);
+    expect(rows).toEqual([0, 1, 0]);
+  });
+
+  it("keeps an end-anchored label off a start-anchored one just before it", () => {
+    const [left, right] = layoutEventLabels(
+      [dateToTime("2025-09-25"), dateToTime("2025-12-28")],
+      domain,
+    );
+    expect(right.anchor).toBe("end");
+    expect(right.row).not.toBe(left.row);
+  });
+
   it("anchors labels near the right edge to the end so they stay inside the chart", () => {
     const [left, right] = layoutEventLabels(
       [dateToTime("2025-02-07"), dateToTime("2025-12-22")],
@@ -88,5 +112,24 @@ describe("niceTicks", () => {
     expect(niceTicks(0.224)).toEqual([0, 0.05, 0.1, 0.15, 0.2, 0.25]);
     expect(niceTicks(0.18)).toEqual([0, 0.05, 0.1, 0.15, 0.2]);
     expect(niceTicks(9)).toEqual([0, 2, 4, 6, 8, 10]);
+  });
+});
+
+describe("withGaps", () => {
+  it("breaks the solid line across a gap over 90 days and bridges it with a dashed segment", () => {
+    const { points } = toTimeDomain([
+      pt("2025-01-10", 0.008),
+      pt("2025-03-10", 0.008),
+      pt("2025-12-10", 0.04),
+      pt("2026-01-10", 0.05),
+    ]);
+    const rows = withGaps(points);
+    expect(rows.map((r) => r.value)).toEqual([0.008, 0.008, null, 0.04, 0.05]);
+    expect(rows.map((r) => r.gap)).toEqual([null, 0.008, 0.024, 0.04, null]);
+  });
+
+  it("leaves monthly readings as one solid line", () => {
+    const { points } = toTimeDomain([pt("2026-01-10", 0.04), pt("2026-02-10", 0.05)]);
+    expect(withGaps(points).every((r) => r.gap === null)).toBe(true);
   });
 });

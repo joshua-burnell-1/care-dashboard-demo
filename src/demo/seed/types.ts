@@ -4,13 +4,27 @@
 import type { PsaReading } from "@/hooks/usePsaReadings";
 import type { CareTeamMember } from "@/hooks/useCareTeam";
 import type { MedicationItem } from "@/hooks/useMedications";
-import type { KpiCard } from "@/hooks/useKpiCards";
 import type { PlanItem } from "@/hooks/usePlanItems";
 import type { DashboardSection } from "@/hooks/useDashboardSections";
 import type { LabResult } from "@/hooks/useLabResults";
 import type { Document } from "@/hooks/useDocuments";
 import type { EditHistoryEntry } from "@/hooks/useEditHistory";
 import type { MedicalCacheRow } from "@/hooks/useMedicalCache";
+
+/**
+ * `kpi_cards` row. The UI no longer shows custom KPI cards (Today computes its tiles), but the
+ * table stays seeded so the demo backend matches the Supabase schema.
+ */
+export type KpiCard = {
+  id: string;
+  label: string;
+  value: string;
+  sub: string;
+  tone: string;
+  sort_index: number;
+  created_at: string;
+  updated_at: string;
+};
 
 /** `documents` row as stored for the demo: the hook's shape plus the indexed text. */
 export type DocumentRow = Document & { extracted_text: string };

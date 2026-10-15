@@ -17,13 +17,13 @@ export function tourCopy(name: string, demo: boolean): TourStep[] {
     },
     {
       title: "Watch the PSA trend",
-      body: "The chart on Today plots every reading since diagnosis. Below it are the latest PSA value, the doubling time, the next appointment and the scan threshold: the four numbers that drive decisions.",
+      body: "The chart on Today plots every reading since surgery, spaced by date, with surgery, radiation and the next scan marked. Above it are the latest PSA, the doubling time, the next visit and the open questions.",
     },
     {
       title: "Keep everything current",
       body: demo
-        ? "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, update the KPI cards, manage medications and change care team members. Changes are saved in this browser, and Reset demo data in the Demo menu at the top puts everything back."
-        : "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, update the KPI cards, manage medications and change care team members. Changes save instantly for everyone who signs in.",
+        ? "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, manage medications and change care team members. Changes are saved in this browser, and Reset demo data in the Demo menu at the top puts everything back."
+        : "Tap Edit on Today or Team to unlock edit mode. Add PSA readings, manage medications and change care team members. Changes save instantly for everyone who signs in.",
     },
     {
       title: demo ? "Try the sample documents" : "Upload any medical document",

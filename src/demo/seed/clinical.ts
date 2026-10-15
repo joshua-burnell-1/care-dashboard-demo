@@ -4,7 +4,7 @@
 import type { PsaReading } from "@/hooks/usePsaReadings";
 import type { LabResult } from "@/hooks/useLabResults";
 import type { MedicationItem } from "@/hooks/useMedications";
-import type { KpiCard } from "@/hooks/useKpiCards";
+import type { KpiCard } from "./types";
 import { editTimestamp, formatShortDate, isoDaysFromToday, timestampDaysFromToday } from "../dates";
 import { EDITS, TIMELINE } from "../persona";
 import { seedId } from "./ids";

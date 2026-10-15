@@ -82,14 +82,53 @@ export function layoutEventLabels(
   { minGap = 0.14, maxRows = 3 }: { minGap?: number; maxRows?: number } = {},
 ): EventLabelLayout[] {
   const span = end - start || 1;
-  const lastOnRow: number[] = [];
-  return times.map((t) => {
-    const f = (t - start) / span;
-    let row = lastOnRow.findIndex((last) => f - last >= minGap);
-    if (row === -1) row = Math.min(lastOnRow.length, maxRows - 1);
-    lastOnRow[row] = f;
-    return { row, anchor: f > 0.75 ? "end" : "start" };
+  const layout: EventLabelLayout[] = times.map(() => ({ row: 0, anchor: "start" }));
+  // Where each row's last label ends, as a fraction of the domain. Labels go left to right.
+  const rowEnds: number[] = [];
+  const order = times.map((t, i) => ({ f: (t - start) / span, i })).sort((a, b) => a.f - b.f);
+  for (const { f, i } of order) {
+    const anchor = f > 0.75 ? "end" : "start";
+    // A start-anchored label runs right of its line; an end-anchored one runs left of it.
+    const [from, to] = anchor === "start" ? [f, f + minGap] : [f - minGap, f];
+    let row = rowEnds.findIndex((rowEnd) => from >= rowEnd);
+    if (row === -1) row = Math.min(rowEnds.length, maxRows - 1);
+    rowEnds[row] = to;
+    layout[i] = { row, anchor };
+  }
+  return layout;
+}
+
+export type ChartRow = {
+  x: number;
+  date: string;
+  /** The solid line: null at a gap breaker, so the line stops there. */
+  value: number | null;
+  /** The dashed bridge across a long gap: set only on the points either side of it. */
+  gap: number | null;
+};
+
+/**
+ * Chart rows that break the solid line wherever readings are more than `maxGapDays` apart and
+ * bridge the break with a dashed segment, so the chart never implies data it does not have.
+ */
+export function withGaps(points: TimePoint[], maxGapDays = 90): ChartRow[] {
+  const rows: ChartRow[] = [];
+  let bridging = false;
+  points.forEach((p, i) => {
+    const next = points[i + 1];
+    const longGap = !!next && next.x - p.x > maxGapDays * DAY_MS;
+    rows.push({ x: p.x, date: p.date, value: p.value, gap: bridging || longGap ? p.value : null });
+    if (longGap) {
+      rows.push({
+        x: (p.x + next.x) / 2,
+        date: "",
+        value: null,
+        gap: (p.value + next.value) / 2,
+      });
+    }
+    bridging = longGap;
   });
+  return rows;
 }
 
 /** Evenly stepped ticks from 0 that reach at least `max`, on a 1, 2, 2.5 or 5 step. */

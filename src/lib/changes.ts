@@ -103,10 +103,50 @@ function documentChanges(sinceIso: string, documents: Document[]): ChangeItem[] 
     .map((d) => ({
       id: `document-${d.id}`,
       kind: "document" as const,
-      title: `Document added: ${d.name}`,
+      title: d.name,
+      detail: "Document added",
       date: d.uploaded_at,
       to: `/documents/${d.id}`,
     }));
+}
+
+const SECTION_NAMES: Record<string, string> = {
+  summary: "the summary",
+  red_flags: "the red flags",
+  open_questions: "the open questions",
+};
+
+/** What an edit touched, in words: a key to group by and a phrase for one or several edits. */
+function editSubject(e: EditHistoryEntry): { key: string; phrase: (n: number) => string } {
+  const counted = (one: string, many: string) => (n: number) => (n === 1 ? one : `${n} ${many}`);
+  switch (e.table_name) {
+    case "psa_readings":
+      return { key: e.table_name, phrase: counted("a PSA reading", "PSA readings") };
+    case "medication_items":
+      return { key: e.table_name, phrase: counted("a medication", "medications") };
+    case "kpi_cards":
+      return { key: e.table_name, phrase: counted("a KPI card", "KPI cards") };
+    case "care_team_members":
+      return { key: e.table_name, phrase: () => "the care team" };
+    case "plan_items":
+      return { key: e.table_name, phrase: () => "the plan" };
+    case "dashboard_sections": {
+      const name = SECTION_NAMES[e.record_id] ?? "the dashboard notes";
+      return { key: `section:${name}`, phrase: () => name };
+    }
+    default:
+      return { key: "other", phrase: counted("another record", "other records") };
+  }
+}
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** "a, b and c", or "a, b, c and 2 more" past `max` phrases. */
+function listPhrases(phrases: string[], max = 3): string {
+  const shown = phrases.length > max ? phrases.slice(0, max) : phrases;
+  const rest = phrases.length - shown.length;
+  const items = rest > 0 ? [...shown, `${rest} more`] : shown;
+  return items.length === 1 ? items[0] : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 /** The family's edits fold into one item, so a busy week of edits never hides a new result. */
@@ -117,24 +157,35 @@ function editChanges(sinceIso: string, edits: EditHistoryEntry[]): ChangeItem[] 
   if (recent.length === 0) return [];
   if (recent.length === 1) {
     const [e] = recent;
+    const noun =
+      e.table_name === "dashboard_sections"
+        ? capitalize(editSubject(e).phrase(1).replace(/^the /, ""))
+        : tableLabel(e.table_name);
     return [
       {
         id: `edit-${e.id}`,
         kind: "edit",
-        title: `${tableLabel(e.table_name)} ${VERBS[e.operation]}`,
+        title: `${noun} ${VERBS[e.operation]}`,
         detail: rowName(e),
         date: e.changed_at,
         to: "/activity",
       },
     ];
   }
-  const tables = [...new Set(recent.map((e) => tableLabel(e.table_name)))];
+  // Group by subject, most recently touched first (Map keeps first-insertion order).
+  const groups = new Map<string, { phrase: (n: number) => string; count: number }>();
+  for (const e of recent) {
+    const { key, phrase } = editSubject(e);
+    const group = groups.get(key) ?? { phrase, count: 0 };
+    group.count += 1;
+    groups.set(key, group);
+  }
   return [
     {
       id: "edits",
       kind: "edit",
-      title: `${recent.length} edits to the record`,
-      detail: tables.join(", "),
+      title: `${recent.length} updates to the record`,
+      detail: capitalize(listPhrases([...groups.values()].map((g) => g.phrase(g.count)))),
       date: recent[0].changed_at,
       to: "/activity",
     },

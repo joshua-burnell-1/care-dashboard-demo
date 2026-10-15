@@ -1,4 +1,4 @@
-// ABOUTME: The dashboard_sections rows: 12 structured content sections plus the
+// ABOUTME: The dashboard_sections rows: 13 structured content sections plus the
 // ABOUTME: long-form patient record (patient_record_md) the chat assistant reads.
 
 import type { DashboardSection } from "@/hooks/useDashboardSections";

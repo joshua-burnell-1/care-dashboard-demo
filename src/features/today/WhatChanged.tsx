@@ -69,9 +69,7 @@ export function WhatChanged({
                     <Icon size={16} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">
-                      {item.title}
-                    </span>
+                    <span className="line-clamp-2 text-sm font-medium text-ink">{item.title}</span>
                     {item.detail && (
                       <span className="block truncate text-xs text-muted">{item.detail}</span>
                     )}

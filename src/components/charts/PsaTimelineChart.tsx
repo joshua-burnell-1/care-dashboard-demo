@@ -1,10 +1,11 @@
 // ABOUTME: PSA over real time: a numeric date axis (so a nine-month gap looks nine months wide),
-// ABOUTME: treatment events as labeled vertical markers, and the scan readiness line. Themed by CSS vars.
+// ABOUTME: treatment events as labeled markers, dashed bridges over long gaps, and the readiness line.
 import { useId, useMemo, useState } from "react";
 import {
   Area,
   CartesianGrid,
   ComposedChart,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -20,6 +21,7 @@ import {
   niceTicks,
   timeToIso,
   toTimeDomain,
+  withGaps,
 } from "@/lib/timeDomain";
 
 export type PsaTimelineReading = { date: string; value: number | null; note?: string };
@@ -69,15 +71,37 @@ function EventLabel({ text, row, anchor, viewBox }: EventLabelProps) {
   );
 }
 
+/**
+ * The readiness line's label, just below the line at the right, ending before any event marker
+ * near the right edge so the two never overlap.
+ */
+function ReadinessLabel({
+  text,
+  endFraction,
+  viewBox,
+}: {
+  text: string;
+  endFraction: number;
+  viewBox?: { x?: number; y?: number; width?: number };
+}) {
+  const x = (viewBox?.x ?? 0) + (viewBox?.width ?? 0) * endFraction - 6;
+  return (
+    <text x={x} y={(viewBox?.y ?? 0) + 15} textAnchor="end" fontSize={11} fill="var(--muted)">
+      {text}
+    </text>
+  );
+}
+
 type TooltipProps = {
   active?: boolean;
-  payload?: { payload?: { date: string; value: number } }[];
+  payload?: { payload?: { date: string; value: number | null } }[];
   notes: Map<string, string>;
 };
 
 function PsaTooltip({ active, payload, notes }: TooltipProps) {
   const point = payload?.[0]?.payload;
-  if (!active || !point) return null;
+  // Gap breakers carry no reading.
+  if (!active || !point || point.value == null) return null;
   const note = notes.get(point.date);
   return (
     <div className="max-w-[220px] rounded-xl border border-line bg-surface px-3 py-2 text-xs text-ink shadow-lg">
@@ -158,13 +182,19 @@ export function PsaTimelineChart({
   // Headroom above the readiness line (or the highest reading) keeps both off the top edge.
   const yTicks = niceTicks(Math.max(readinessLine, ...points.map((p) => p.value)) * 1.12);
   const labelRows = events.length ? Math.max(...labels.map((l) => l.row)) + 1 : 0;
-  const lastIndex = points.length - 1;
+  const rows = withGaps(points);
+  const lastIndex = rows.length - 1;
+  const span = domain[1] - domain[0] || 1;
+  const nearRight = events
+    .map((e) => (dateToTime(e.date) - domain[0]) / span)
+    .filter((f) => f > 0.85);
+  const readinessEnd = nearRight.length ? Math.min(...nearRight) : 1;
 
   return (
     <div role="img" aria-label={summary} className="w-full select-none" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%" onResize={(w) => setWidth(w)}>
         <ComposedChart
-          data={points}
+          data={rows}
           accessibilityLayer={false}
           margin={{ top: 14 + labelRows * LABEL_ROW_PX, right: 8, bottom: 0, left: 0 }}
         >
@@ -219,16 +249,26 @@ export function PsaTimelineChart({
             stroke="var(--ink)"
             strokeOpacity={0.4}
             strokeDasharray="6 4"
-            label={{
-              value: `Scan readiness ${readinessLine.toFixed(2)}`,
-              position: "insideTopLeft",
-              fill: "var(--muted)",
-              fontSize: 11,
-              offset: 6,
-            }}
+            label={
+              <ReadinessLabel
+                text={`Scan readiness ${readinessLine.toFixed(2)}`}
+                endFraction={readinessEnd}
+              />
+            }
+          />
+          <Line
+            type="linear"
+            dataKey="gap"
+            stroke="var(--data)"
+            strokeWidth={2}
+            strokeOpacity={0.55}
+            strokeDasharray="3 5"
+            dot={false}
+            activeDot={false}
+            isAnimationActive={!reduceMotion}
           />
           <Area
-            type="monotoneX"
+            type="linear"
             dataKey="value"
             stroke="var(--data)"
             strokeWidth={2}

@@ -33,6 +33,16 @@ export function psaDoublingMonths(readings: Reading[]): number | null {
   return slope > 0 ? Math.LN2 / slope : null;
 }
 
+/**
+ * Doubling time fitted across every post-radiation reading, the estimate Today, Learn and the
+ * record all quote.
+ */
+export function postRadiationDoublingMonths(
+  readings: (Reading & { phase: string })[],
+): number | null {
+  return psaDoublingMonths(readings.filter((r) => r.phase === "post-rad"));
+}
+
 export function formatDoublingTime(months: number): string {
   return months < 1 ? "<1 mo" : `~${months.toFixed(1)} mo`;
 }

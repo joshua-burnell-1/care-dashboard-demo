@@ -8,8 +8,10 @@ import type { CareTeamMember } from "@/hooks/useCareTeam";
 import type { PlanItem } from "@/hooks/usePlanItems";
 import type { MedicationItem } from "@/hooks/useMedications";
 import { formatLongDate, formatMonthYear, isoDaysFromToday, editTimestamp } from "../dates";
+import type { OpenQuestion } from "@/features/shared/sections";
 import { EDITS, PERSONA, TIMELINE } from "../persona";
 import { buildPatientRecord } from "./patientRecord";
+import { PET_TITLE } from "./team";
 
 type Tone = "rose" | "info" | "warn" | "neutral" | "ok" | "danger";
 /** The Learn page lists foods and drinks separately. */
@@ -413,6 +415,21 @@ const GLOSSARY = [
   },
 ];
 
+/** Questions the family has written down for the upcoming visits. */
+function openQuestionsSection(today: Date, planItems: PlanItem[]): OpenQuestion[] {
+  const on = (offset: number) => isoDaysFromToday(offset, today);
+  const checkIn = planItems.find((p) => p.event_date === on(TIMELINE.nextVisit))!;
+  const scan = planItems.find((p) => p.title === PET_TITLE)!;
+  const secondOpinion = planItems.find((p) => p.event_date === on(TIMELINE.secondOpinionFollowUp))!;
+  const specs: [visit: PlanItem, text: string][] = [
+    [checkIn, "Should he skip the vitamin D and fish oil on the morning of the scan?"],
+    [checkIn, "If the PSA reaches 0.20 before the scan, does anything change?"],
+    [scan, "How soon will the report be ready, and who will call us with it?"],
+    [secondOpinion, "If the trial accepts him, how often would visits at Riverside be?"],
+  ];
+  return specs.map(([visit, text], i) => ({ id: `question-${i + 1}`, text, visit_id: visit.id }));
+}
+
 export function buildDashboardSections(today: Date, inputs: SectionInputs): DashboardSection[] {
   const updated_at = editTimestamp(EDITS.summary, today);
   const content: Record<string, unknown> = {
@@ -428,6 +445,7 @@ export function buildDashboardSections(today: Date, inputs: SectionInputs): Dash
     pathology_features: pathologySection(today),
     doubling_bands: DOUBLING_BANDS,
     glossary: GLOSSARY,
+    open_questions: openQuestionsSection(today, inputs.planItems),
   };
   content.patient_record_md = buildPatientRecord(today, inputs, {
     redFlags: RED_FLAGS,

@@ -11,18 +11,8 @@ export type EditHistoryEntry = {
   changed_at: string;
 };
 
-const TABLE_LABELS: Record<string, string> = {
-  psa_readings: "PSA reading",
-  care_team_members: "Care team",
-  medication_items: "Medication",
-  kpi_cards: "KPI card",
-  plan_items: "Plan item",
-  dashboard_sections: "Dashboard section",
-};
-
-export function tableLabel(name: string): string {
-  return TABLE_LABELS[name] ?? name;
-}
+// Table names live with the change feed, which runs in unit tests without the client.
+export { tableLabel } from "@/lib/changes";
 
 export function useEditHistory() {
   const [entries, setEntries] = useState<EditHistoryEntry[]>([]);

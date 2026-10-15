@@ -286,7 +286,7 @@ test.describe("desktop", () => {
     await page.getByRole("button", { name: "Enter edit mode" }).click();
     const rows = page.getByRole("button", { name: /^\S.* ng\/mL/ });
     const before = await rows.count();
-    await page.getByRole("button", { name: "+ Add reading" }).click();
+    await page.getByRole("button", { name: "Add reading" }).click();
     await page.locator('input[type="date"]').fill("2026-10-12");
     await page.locator('input[type="number"]').fill("0.222");
     await page.getByRole("button", { name: "Save" }).click();

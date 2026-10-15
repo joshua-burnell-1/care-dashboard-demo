@@ -5,7 +5,7 @@ import { Page } from "@/components/shell/Page";
 import { usePsaReadings } from "@/hooks/usePsaReadings";
 import { demoDb } from "@/integrations/supabase/client";
 import { resolvePatientFirstName } from "@/lib/patientName";
-import { formatDoublingTime, psaDoublingMonths } from "@/lib/psaDoubling";
+import { formatDoublingTime, postRadiationDoublingMonths } from "@/lib/psaDoubling";
 import { Card, H2 } from "@/features/shared/SectionUi";
 import {
   toneClasses,
@@ -35,9 +35,8 @@ export function LearnPage() {
   const doublingBands = sec<{ range: string; note: string; tone: Tone }[]>("doubling_bands", []);
   const glossary = sec<{ term: string; def: string }[]>("glossary", []);
 
-  // Doubling time fitted across every post-rad reading, so it agrees with the record's estimate
   const doublingTimeStr = useMemo(() => {
-    const months = psaDoublingMonths(psaReadings.filter((r) => r.phase === "post-rad"));
+    const months = postRadiationDoublingMonths(psaReadings);
     return months == null ? null : formatDoublingTime(months);
   }, [psaReadings]);
 

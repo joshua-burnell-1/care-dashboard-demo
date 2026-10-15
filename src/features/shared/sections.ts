@@ -23,6 +23,8 @@ export type DoctorOpinion = {
   rows: { k: string; v: string }[];
 };
 export type TitledItem = { title: string; body: string };
+/** One question the family wants to ask, tied to the plan item (visit) it is for. */
+export type OpenQuestion = { id: string; text: string; visit_id: string };
 export type NutritionItem = {
   name: string;
   category?: "food" | "drink";

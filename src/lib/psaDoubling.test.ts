@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSeed } from "@/demo/seed";
-import { formatDoublingTime, psaDoublingMonths } from "./psaDoubling";
+import { formatDoublingTime, postRadiationDoublingMonths, psaDoublingMonths } from "./psaDoubling";
 
 const pt = (date: string, value: number) => ({ date, value });
 
@@ -72,5 +72,19 @@ describe("formatDoublingTime", () => {
     expect(formatDoublingTime(0.5)).toBe("<1 mo");
     expect(formatDoublingTime(0.01)).toBe("<1 mo");
     expect(formatDoublingTime(0.99)).toBe("<1 mo");
+  });
+});
+
+describe("postRadiationDoublingMonths", () => {
+  it("fits only the post-radiation readings", () => {
+    const readings = buildSeed().psa_readings;
+    const postRad = readings.filter((r) => r.phase === "post-rad");
+    expect(postRadiationDoublingMonths(readings)).toBe(psaDoublingMonths(postRad));
+  });
+
+  it("is null without post-radiation readings", () => {
+    expect(
+      postRadiationDoublingMonths([{ date: "2026-01-01", value: 7.9, phase: "pre-op" }]),
+    ).toBeNull();
   });
 });

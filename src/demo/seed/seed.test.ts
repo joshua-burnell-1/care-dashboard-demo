@@ -49,6 +49,21 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
       const rec = s.dashboard_sections.find((r) => r.key === "patient_record_md")!;
       expect(String(rec.content)).toContain(PERSONA.fullName);
     });
+    it("seeds 3 to 4 open questions, each tied to an upcoming plan item", () => {
+      const questions = s.dashboard_sections.find((r) => r.key === "open_questions")!.content as {
+        id: string;
+        text: string;
+        visit_id: string;
+      }[];
+      expect(questions.length).toBeGreaterThanOrEqual(3);
+      expect(questions.length).toBeLessThanOrEqual(4);
+      expect(new Set(questions.map((q) => q.id)).size).toBe(questions.length);
+      for (const q of questions) {
+        const visit = s.plan_items.find((p) => p.id === q.visit_id)!;
+        expect(days(visit.event_date as string, today)).toBeGreaterThan(0);
+        expect(q.text.endsWith("?")).toBe(true);
+      }
+    });
     it("has all 12 dashboard section keys", () => {
       for (const k of [
         "patient",

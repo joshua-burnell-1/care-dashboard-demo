@@ -222,7 +222,7 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
               <button
                 type="button"
                 onClick={stop}
-                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
               >
                 <Square size={14} aria-hidden="true" />
                 Stop
@@ -232,7 +232,7 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
               <button
                 type="button"
                 onClick={() => setAttempt((n) => n + 1)}
-                className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
               >
                 Try again
               </button>
@@ -241,7 +241,7 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
               type="button"
               onClick={copy}
               disabled={!text}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary disabled:opacity-50"
             >
               <Copy size={14} aria-hidden="true" />
               {copyState === "copied" ? "Copied" : "Copy"}
@@ -250,7 +250,7 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
               type="button"
               onClick={() => void printBrief(item, text)}
               disabled={!text}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary disabled:opacity-50"
             >
               <Printer size={14} aria-hidden="true" />
               Print

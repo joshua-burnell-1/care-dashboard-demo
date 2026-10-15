@@ -8,7 +8,18 @@
       content="Demo of a caregiver dashboard and AI assistant for cancer care coordination. All data is fictional."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Care Dashboard Demo</title>
+    <title>Tend · Family care, coordinated (demo)</title>
+    <script>
+      /* No-flash theme: keep in sync with src/lib/theme.ts (key "tend-theme"). */
+      (function () {
+        try {
+          var t = localStorage.getItem("tend-theme");
+          var dark =
+            t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,21 +1,14 @@
-// ABOUTME: Dialog that streams an AI visit-prep brief for one upcoming plan item, using the
-// ABOUTME: viewer's own Anthropic key. Asks for the key first when there isn't one.
-
+// ABOUTME: The AI visit-prep brief for one plan item, shown inline on the visit page. It streams
+// ABOUTME: from the viewer's own Anthropic key (asking for it first) and offers Stop, Copy and Print.
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Copy, Printer, Square } from "lucide-react";
 import { ApiKeyForm } from "@/components/ApiKeyForm";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { clearApiKey, getApiKey, setApiKey, STORAGE_BLOCKED_MESSAGE } from "@/demo/apiKey";
 import { streamVisitPrep, VisitPrepError } from "@/demo/visitPrep";
 import type { PlanItem } from "@/hooks/usePlanItems";
+import { formatDate } from "@/lib/format";
 
 export type VisitPrepContext = {
   recentPsa: { date: string; value: number | null }[];
@@ -28,9 +21,13 @@ const DISCLAIMER = "Demo copy with fictional data. AI-generated; not medical adv
 
 /** Heading and list spacing for the rendered brief; the app has no typography plugin. */
 const BRIEF_CLASSES =
-  "text-sm leading-relaxed [&_h2]:mt-5 [&_h2]:mb-1.5 [&_h2]:text-base [&_h2]:font-semibold [&_h2:first-child]:mt-0 " +
+  "text-sm leading-relaxed text-ink [&_h2]:mt-6 [&_h2]:mb-1.5 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-normal [&_h2:first-child]:mt-0 " +
   "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1";
 
+const BUTTON =
+  "inline-flex h-9 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-sm font-medium text-ink transition-colors duration-200 ease-out hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 disabled:hover:bg-surface";
+
+// The print frame is its own document, so it carries plain colors instead of the app's tokens.
 const PRINT_CSS = `
   body { font: 14px/1.5 system-ui, sans-serif; margin: 24px; color: #111; }
   h1 { font-size: 20px; margin: 0 0 4px; }
@@ -41,14 +38,14 @@ const PRINT_CSS = `
   .note { margin-top: 24px; border-top: 1px solid #ccc; padding-top: 8px; }
 `;
 
-/** Prints just the brief: a hidden iframe holds only it, so the dashboard never reaches the printer. */
+/** Prints just the brief: a hidden iframe holds only it, so the page never reaches the printer. */
 async function printBrief(item: PlanItem, markdown: string) {
   // Loaded on demand: only printing needs the server renderer.
   const { renderToStaticMarkup } = await import("react-dom/server");
   const body = renderToStaticMarkup(
     <>
       <h1>Visit prep: {item.title}</h1>
-      <p className="meta">{item.event_date}</p>
+      {item.event_date && <p className="meta">{formatDate(item.event_date)}</p>}
       <ReactMarkdown>{markdown}</ReactMarkdown>
       <p className="note">{DISCLAIMER}</p>
     </>,
@@ -83,7 +80,7 @@ async function loadRecord(): Promise<string> {
   }
 }
 
-function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepContext }) {
+export function VisitPrepBrief({ item, context }: { item: PlanItem; context: VisitPrepContext }) {
   const [apiKey, setKey] = useState<string | null>(() => getApiKey());
   const [keyError, setKeyError] = useState<string | undefined>();
   const [text, setText] = useState("");
@@ -171,78 +168,64 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
   const streaming = status === "streaming";
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Visit prep</DialogTitle>
-        <DialogDescription>
-          {item.title}
-          {item.event_date ? ` · ${item.event_date}` : ""}. {DISCLAIMER}
-        </DialogDescription>
-      </DialogHeader>
+    <section
+      aria-labelledby="visit-prep-heading"
+      data-visit-prep
+      className="rounded-[20px] border border-line bg-surface p-5 sm:p-6"
+    >
+      <h2 id="visit-prep-heading" className="font-display text-3xl text-ink">
+        Visit prep brief
+      </h2>
+      <p className="mt-1 text-sm text-muted">{DISCLAIMER}</p>
 
       {!apiKey ? (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-4 space-y-2">
+          <p className="text-sm text-muted">
             The brief is written by Claude using your own Anthropic API key.
           </p>
           <ApiKeyForm onSave={saveKey} error={keyError} />
         </div>
       ) : (
-        <>
+        <div className="mt-4 space-y-3">
           <div
             aria-live="polite"
             aria-busy={streaming}
-            className="max-h-[55vh] overflow-y-auto rounded-lg border p-3"
+            className="rounded-xl border border-line bg-paper p-4"
           >
             {text ? (
               <div className={BRIEF_CLASSES}>
                 <ReactMarkdown>{text}</ReactMarkdown>
               </div>
             ) : (
-              streaming && <p className="text-sm text-muted-foreground">Writing the brief…</p>
+              streaming && <p className="text-sm text-muted">Writing the brief…</p>
             )}
             {status === "stopped" && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Stopped. The brief may be incomplete.
-              </p>
+              <p className="mt-3 text-xs text-muted">Stopped. The brief may be incomplete.</p>
             )}
           </div>
           {copyState === "failed" && (
-            <p role="alert" className="text-sm text-rose-700">
+            <p role="alert" className="text-sm text-act">
               Couldn't copy. Select the text and copy it by hand.
             </p>
           )}
           {error && (
-            <p role="alert" className="text-sm text-rose-700">
+            <p role="alert" className="text-sm text-act">
               {error}
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             {streaming && (
-              <button
-                type="button"
-                onClick={stop}
-                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
-              >
+              <button type="button" onClick={stop} className={BUTTON}>
                 <Square size={14} aria-hidden="true" />
                 Stop
               </button>
             )}
             {status === "error" && (
-              <button
-                type="button"
-                onClick={() => setAttempt((n) => n + 1)}
-                className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
-              >
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className={BUTTON}>
                 Try again
               </button>
             )}
-            <button
-              type="button"
-              onClick={copy}
-              disabled={!text}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary disabled:opacity-50"
-            >
+            <button type="button" onClick={copy} disabled={!text} className={BUTTON}>
               <Copy size={14} aria-hidden="true" />
               {copyState === "copied" ? "Copied" : "Copy"}
             </button>
@@ -250,33 +233,14 @@ function VisitPrepBody({ item, context }: { item: PlanItem; context: VisitPrepCo
               type="button"
               onClick={() => void printBrief(item, text)}
               disabled={!text}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-secondary disabled:opacity-50"
+              className={BUTTON}
             >
               <Printer size={14} aria-hidden="true" />
               Print
             </button>
           </div>
-        </>
+        </div>
       )}
-    </>
-  );
-}
-
-export function VisitPrepDialog({
-  item,
-  context,
-  onClose,
-}: {
-  item: PlanItem | null;
-  context: VisitPrepContext;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog open={item !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        {/* Mounted only while open, so closing aborts the request and reopening starts fresh. */}
-        {item && <VisitPrepBody key={item.id} item={item} context={context} />}
-      </DialogContent>
-    </Dialog>
+    </section>
   );
 }

@@ -2,20 +2,21 @@
 // ABOUTME: with an empty state that points at the Add button.
 import type { PlanItem } from "@/hooks/usePlanItems";
 import { demoDb } from "@/integrations/supabase/client";
-import type { TimelineBuckets } from "@/lib/plan";
+import { canPrepare, type TimelineBuckets } from "@/lib/plan";
 import { PlanRow } from "./PlanRow";
 
 function Group({
   label,
   items,
   overdue = false,
-  canPrep = false,
+  prepFrom,
   onEdit,
 }: {
   label: string;
   items: PlanItem[];
   overdue?: boolean;
-  canPrep?: boolean;
+  /** Today's date: items from then on get a Prepare link. Omit for none. */
+  prepFrom?: string;
   onEdit: (item: PlanItem) => void;
 }) {
   if (items.length === 0) return null;
@@ -26,7 +27,13 @@ function Group({
       </h3>
       <ol className="rounded-[20px] border border-line bg-surface px-4 sm:px-5">
         {items.map((it) => (
-          <PlanRow key={it.id} item={it} overdue={overdue} canPrep={canPrep} onEdit={onEdit} />
+          <PlanRow
+            key={it.id}
+            item={it}
+            overdue={overdue}
+            canPrep={!!prepFrom && canPrepare(it, prepFrom)}
+            onEdit={onEdit}
+          />
         ))}
       </ol>
     </section>
@@ -35,9 +42,11 @@ function Group({
 
 export function Timeline({
   buckets,
+  today,
   onEdit,
 }: {
   buckets: TimelineBuckets;
+  today: string;
   onEdit: (item: PlanItem | null) => void;
 }) {
   const { overdue, upcoming, ongoing, past } = buckets;
@@ -55,7 +64,12 @@ export function Timeline({
         <p className="text-sm text-muted">Nothing is coming up.</p>
       )}
       <Group label="Overdue" items={overdue} overdue onEdit={onEdit} />
-      <Group label="Upcoming" items={upcoming} canPrep={!!demoDb} onEdit={onEdit} />
+      <Group
+        label="Upcoming"
+        items={upcoming}
+        prepFrom={demoDb ? today : undefined}
+        onEdit={onEdit}
+      />
       <Group label="Ongoing and on hold" items={ongoing} onEdit={onEdit} />
       <Group label="Past" items={past} onEdit={onEdit} />
     </div>

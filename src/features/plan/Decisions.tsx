@@ -59,7 +59,9 @@ function Comparison({ doctors }: { doctors: DoctorOpinion[] }) {
             </p>
             {row.views.map((view, i) => (
               <div key={doctors[i].name} data-view={doctors[i].name}>
-                <p className="mb-0.5 text-xs font-medium text-muted md:hidden">{doctors[i].name}</p>
+                <p className="mb-0.5 text-xs font-medium text-muted md:sr-only">
+                  {doctors[i].name}
+                </p>
                 {view ? (
                   <p className="text-sm leading-relaxed text-ink">{view}</p>
                 ) : (

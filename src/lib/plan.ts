@@ -47,6 +47,11 @@ export function splitTimeline(items: PlanItem[], today: string): TimelineBuckets
   };
 }
 
+/** Only an open visit that is today or later has anything to prepare for. */
+export function canPrepare(item: PlanItem, today: string): boolean {
+  return !!item.event_date && item.event_date >= today && item.status !== "Completed";
+}
+
 /** The status as words plus a chip level. Overdue overrides whatever the stored status says. */
 export function planChip(item: PlanItem, overdue: boolean): { level: ChipLevel; label: string } {
   if (overdue) return { level: "act", label: "Overdue" };

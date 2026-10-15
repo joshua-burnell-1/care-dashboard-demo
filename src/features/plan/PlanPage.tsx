@@ -31,8 +31,9 @@ export function PlanPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PlanItem | null>(null);
 
-  // Local calendar day, the same helper the seed uses, so plan dates compare correctly.
-  const today = useMemo(() => isoDaysFromToday(0), []);
+  // Local calendar day, the same helper the seed uses, so plan dates compare correctly. Read on
+  // every render (as the visit page does) so a page left open past midnight stays right.
+  const today = isoDaysFromToday(0);
   const buckets = useMemo(() => splitTimeline(items, today), [items, today]);
 
   function openEditor(item: PlanItem | null) {
@@ -62,7 +63,7 @@ export function PlanPage() {
           {loading ? (
             <MascotLoader label="Loading plan…" />
           ) : (
-            <Timeline buckets={buckets} onEdit={openEditor} />
+            <Timeline buckets={buckets} today={today} onEdit={openEditor} />
           )}
         </section>
 

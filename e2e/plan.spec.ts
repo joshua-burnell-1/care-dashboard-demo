@@ -77,6 +77,12 @@ test.describe("desktop", () => {
     const right = await topic.locator('[data-view="Dr. James Whitfield"]').boundingBox();
     expect(Math.abs(left!.y - right!.y)).toBeLessThan(2);
     expect(right!.x).toBeGreaterThan(left!.x + left!.width - 1);
+    // Each view keeps its clinician's name for screen readers on desktop (not display: none).
+    for (const name of ["Dr. Priya Raman", "Dr. James Whitfield"]) {
+      const label = topic.locator(`[data-view="${name}"] > p`).first();
+      await expect(label).toHaveText(name);
+      expect(await label.evaluate((el) => getComputedStyle(el).display)).not.toBe("none");
+    }
     await expect(page.getByRole("region", { name: "Where they agree" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Where they differ" })).toBeVisible();
   });

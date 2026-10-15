@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlanItem } from "@/hooks/usePlanItems";
 import {
+  canPrepare,
   comparisonRows,
   dateBadge,
   isOverdue,
@@ -159,5 +160,36 @@ describe("comparisonRows", () => {
       { rows: [{ k: "What would change his plan", v: "y" }] },
     ]);
     expect(rows).toEqual([{ topic: "What would change their plan", views: ["x", "y"] }]);
+  });
+});
+
+describe("splitTimeline conservation", () => {
+  it("places every item in exactly one bucket", () => {
+    const items = [
+      item({ id: "a", event_date: "2026-10-01" }),
+      item({ id: "b", event_date: "2026-10-01", status: "Locked" }),
+      item({ id: "c", event_date: TODAY }),
+      item({ id: "d", event_date: "2026-12-01", status: "In flight" }),
+      item({ id: "e", event_date: null, status: "Hold" }),
+      item({ id: "f", event_date: null, status: "Completed" }),
+      item({ id: "g", event_date: "2026-09-01", status: "Completed" }),
+      item({ id: "h", event_date: "2026-09-01", status: "Conditional" }),
+    ];
+    const out = splitTimeline(items, TODAY);
+    const placed = [...out.overdue, ...out.upcoming, ...out.ongoing, ...out.past].map((i) => i.id);
+    expect(placed).toHaveLength(items.length);
+    expect(new Set(placed).size).toBe(items.length);
+    expect([...placed].sort()).toEqual(items.map((i) => i.id).sort());
+  });
+});
+
+describe("canPrepare", () => {
+  it("is true only for an open visit dated today or later", () => {
+    expect(canPrepare(item({ event_date: TODAY }), TODAY)).toBe(true);
+    expect(canPrepare(item({ event_date: "2026-11-01", status: "Locked" }), TODAY)).toBe(true);
+    expect(canPrepare(item({ event_date: "2026-10-14", status: "Hold" }), TODAY)).toBe(false);
+    expect(canPrepare(item({ event_date: "2026-10-14" }), TODAY)).toBe(false);
+    expect(canPrepare(item({ event_date: "2026-11-01", status: "Completed" }), TODAY)).toBe(false);
+    expect(canPrepare(item({ event_date: null }), TODAY)).toBe(false);
   });
 });

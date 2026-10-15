@@ -93,50 +93,59 @@ export function VisitPrepBrief({ item, context }: { item: PlanItem; context: Vis
   const controllerRef = useRef<AbortController | null>(null);
   const contextRef = useRef(context);
   contextRef.current = context;
+  // The latest item, read when a run starts. The item's identity changes on every plan refresh
+  // (an edit, a realtime event), and that must not restart a paid request.
+  const itemRef = useRef(item);
+  itemRef.current = item;
+  // The visit fields the current brief was written from, to tell when an edit made it stale.
+  const [writtenFrom, setWrittenFrom] = useState({
+    title: item.title,
+    event_date: item.event_date,
+    body: item.body,
+  });
 
-  const run = useCallback(
-    async (key: string) => {
-      const controller = new AbortController();
-      controllerRef.current = controller;
-      setText("");
-      setError("");
-      setStatus("streaming");
-      try {
-        const record = await loadRecord();
-        if (controller.signal.aborted) return;
-        await streamVisitPrep(
-          {
-            planItem: { title: item.title, event_date: item.event_date ?? "", body: item.body },
-            record,
-            recentPsa: contextRef.current.recentPsa,
-            medications: contextRef.current.medications,
-          },
-          { apiKey: key, signal: controller.signal, onText: (d) => setText((t) => t + d) },
-        );
-        if (!controller.signal.aborted) setStatus("done");
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        const err =
-          e instanceof VisitPrepError ? e : new VisitPrepError("Something went wrong.", "API");
-        if (err.code === "BAD_KEY" || err.code === "NO_API_KEY") {
-          clearApiKey();
-          setKey(null);
-          setKeyError(err.message);
-          return;
-        }
-        setError(err.message);
-        setStatus("error");
+  const run = useCallback(async (key: string) => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const { title, event_date, body } = itemRef.current;
+    setWrittenFrom({ title, event_date, body });
+    setText("");
+    setError("");
+    setStatus("streaming");
+    try {
+      const record = await loadRecord();
+      if (controller.signal.aborted) return;
+      await streamVisitPrep(
+        {
+          planItem: { title, event_date: event_date ?? "", body },
+          record,
+          recentPsa: contextRef.current.recentPsa,
+          medications: contextRef.current.medications,
+        },
+        { apiKey: key, signal: controller.signal, onText: (d) => setText((t) => t + d) },
+      );
+      if (!controller.signal.aborted) setStatus("done");
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      const err =
+        e instanceof VisitPrepError ? e : new VisitPrepError("Something went wrong.", "API");
+      if (err.code === "BAD_KEY" || err.code === "NO_API_KEY") {
+        clearApiKey();
+        setKey(null);
+        setKeyError(err.message);
+        return;
       }
-    },
-    [item],
-  );
+      setError(err.message);
+      setStatus("error");
+    }
+  }, []);
 
   useEffect(() => {
     if (!apiKey) return;
     void run(apiKey);
     return () => controllerRef.current?.abort();
-    // `attempt` re-runs the brief for "Try again".
-  }, [apiKey, run, attempt]);
+    // Re-runs only for a new key, a new visit or an explicit attempt ("Try again", "Regenerate").
+  }, [apiKey, run, item.id, attempt]);
 
   useEffect(() => () => clearTimeout(copyTimer.current), []);
 
@@ -166,6 +175,11 @@ export function VisitPrepBrief({ item, context }: { item: PlanItem; context: Vis
   }
 
   const streaming = status === "streaming";
+  const stale =
+    !streaming &&
+    (item.title !== writtenFrom.title ||
+      item.event_date !== writtenFrom.event_date ||
+      item.body !== writtenFrom.body);
 
   return (
     <section
@@ -203,6 +217,18 @@ export function VisitPrepBrief({ item, context }: { item: PlanItem; context: Vis
               <p className="mt-3 text-xs text-muted">Stopped. The brief may be incomplete.</p>
             )}
           </div>
+          {stale && (
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              This visit changed after the brief was written.
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="font-medium text-ink underline underline-offset-2 hover:no-underline"
+              >
+                Regenerate
+              </button>
+            </p>
+          )}
           {copyState === "failed" && (
             <p role="alert" className="text-sm text-act">
               Couldn't copy. Select the text and copy it by hand.

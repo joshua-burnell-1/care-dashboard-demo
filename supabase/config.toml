@@ -1,0 +1,19 @@
+project_id = "care-dashboard-demo"
+
+[functions.chat]
+verify_jwt = false
+
+[functions.plan-items]
+verify_jwt = false
+
+[functions.dashboard-data]
+verify_jwt = false
+
+[functions.ingest-document]
+verify_jwt = false
+
+[functions.chat-history]
+verify_jwt = false
+
+[functions.notify-appointments]
+verify_jwt = false

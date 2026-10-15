@@ -12,8 +12,8 @@ const booleanParam = z
   .catch(undefined);
 
 const labsSearchSchema = z.object({
-  q: z.coerce.string().optional().catch(undefined),
-  panel: z.coerce.string().optional().catch(undefined),
+  q: z.string().optional().catch(undefined),
+  panel: z.string().optional().catch(undefined),
   abnormal: booleanParam,
   sort: z.enum(["date", "name"]).optional().catch(undefined),
   page: z.coerce.number().int().positive().optional().catch(undefined),

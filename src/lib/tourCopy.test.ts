@@ -19,6 +19,14 @@ describe("tourCopy", () => {
   it("makes no claims beyond the shared app in real mode", () => {
     expect(text(false)).not.toMatch(/family members|secure|fictional/);
   });
+  it("describes the routed layout, not the old tabs and banner", () => {
+    for (const t of [text(true), text(false)]) {
+      expect(t).toMatch(/Documents/);
+      expect(t).toMatch(/Assistant from the button in the top bar/);
+      expect(t).not.toMatch(/Records tab|Seven tabs|Daily Care|Background|side panel|banner/);
+    }
+    expect(text(true)).toMatch(/Demo menu/);
+  });
   it("uses no em dashes", () => {
     expect(text(true) + text(false)).not.toContain("—");
   });

@@ -12,7 +12,7 @@ import { EDITS, PERSONA, TIMELINE } from "../persona";
 import { buildPatientRecord } from "./patientRecord";
 
 type Tone = "rose" | "info" | "warn" | "neutral" | "ok" | "danger";
-/** The Daily Care tab lists foods and drinks separately. */
+/** The Learn page lists foods and drinks separately. */
 type NutritionCategory = "food" | "drink";
 
 export type SectionInputs = {

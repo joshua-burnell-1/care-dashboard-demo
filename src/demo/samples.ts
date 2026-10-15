@@ -1,4 +1,4 @@
-// ABOUTME: The keyless sample documents a visitor can try on the Records tab, with a
+// ABOUTME: The keyless sample documents a visitor can try on the Documents page, with a
 // ABOUTME: hand-written extraction for each so they work without an API key.
 
 import type { SuggestedLab, SuggestedUpdates } from "@/components/dashboard/SuggestionsModal";

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { DocumentsPage } from "@/features/documents/DocumentsPage";
 
 const documentsSearchSchema = z.object({
-  q: z.coerce.string().optional().catch(undefined),
-  type: z.coerce.string().optional().catch(undefined),
+  q: z.string().optional().catch(undefined),
+  type: z.string().optional().catch(undefined),
   page: z.coerce.number().int().positive().optional().catch(undefined),
 });
 

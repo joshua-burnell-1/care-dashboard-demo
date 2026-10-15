@@ -49,6 +49,28 @@ test.describe("desktop", () => {
     expect(new URL(page.url()).searchParams.get("abnormal")).toMatch(/^(1|true)$/);
   });
 
+  test("free-text search params round-trip as typed", async ({ page }) => {
+    await page.goto("/labs?q=123");
+    await expect(page.getByRole("heading", { level: 1, name: "Labs" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1, name: "Labs" })).toBeVisible();
+    expect(new URL(page.url()).search).toBe("?q=123");
+  });
+
+  test("a detail page marks its section as current in the sidebar", async ({ page }) => {
+    await page.goto("/labs/psa");
+    await expect(page.getByRole("heading", { level: 1, name: "PSA" })).toBeVisible();
+    const primary = page.getByRole("navigation", { name: "Primary" });
+    await expect(primary.getByRole("link", { name: "Labs" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(primary.getByRole("link", { name: "Today" })).not.toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   test("an unknown lab metric shows a not-found state with a way back", async ({ page }) => {
     await page.goto("/labs/not-a-metric");
     await expect(page.getByRole("heading", { name: "Lab result not found" })).toBeVisible();
@@ -76,7 +98,7 @@ test.describe("desktop", () => {
   test("the shell has a skip link and one primary nav", async ({ page }) => {
     await page.goto("/");
     await waitForPage(page);
-    await expect(page.getByRole("navigation")).toHaveCount(1);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(1);
     await page.keyboard.press("Tab");
     const skip = page.getByRole("link", { name: "Skip to content" });
     await expect(skip).toBeFocused();
@@ -90,7 +112,7 @@ test.describe("mobile", () => {
   test("one nav landmark and the More sheet reaches Activity", async ({ page }) => {
     await page.goto("/");
     await waitForPage(page);
-    await expect(page.getByRole("navigation")).toHaveCount(1);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(1);
 
     await page.getByRole("button", { name: "More" }).click();
     await page.getByRole("dialog").getByRole("link", { name: "Activity" }).click();

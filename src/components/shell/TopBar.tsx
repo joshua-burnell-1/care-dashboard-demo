@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { BRAND_NAME } from "@/lib/brand";
 import { DemoBanner } from "@/components/DemoBanner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { shortcutHint } from "@/lib/shortcuts";
 
 export function TopBar({
   title,
@@ -13,8 +14,8 @@ export function TopBar({
   assistantSlot,
 }: {
   title: string;
-  /** Opens search. Until the command palette exists (Task 3) the button shows but is disabled. */
-  onSearch?: () => void;
+  /** Opens the command palette. */
+  onSearch: () => void;
   bellSlot?: ReactNode;
   assistantSlot?: ReactNode;
 }) {
@@ -33,15 +34,15 @@ export function TopBar({
         <button
           type="button"
           onClick={onSearch}
-          disabled={!onSearch}
           aria-label="Search"
           aria-keyshortcuts="Meta+K Control+K"
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-line bg-surface px-2.5 text-sm text-muted transition-colors duration-200 ease-out hover:text-ink disabled:cursor-not-allowed disabled:opacity-60 lg:w-56"
+          aria-haspopup="dialog"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-line bg-surface px-2.5 text-sm text-muted transition-colors duration-200 ease-out hover:text-ink lg:w-56"
         >
           <Search size={16} aria-hidden />
           <span className="hidden lg:inline">Search</span>
           <kbd className="ml-auto hidden rounded-md border border-line px-1.5 font-mono text-[11px] lg:inline">
-            ⌘K
+            {shortcutHint("K")}
           </kbd>
         </button>
         {bellSlot}

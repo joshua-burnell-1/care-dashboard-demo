@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { MoreHorizontal } from "lucide-react";
+import { AssistantFab } from "@/components/assistant/AssistantPanel";
 import { NAV_ITEMS, navItemForPath } from "@/lib/nav";
 import { MoreSheet } from "./MoreSheet";
 
@@ -55,6 +56,7 @@ export function MobileTabBar() {
           </li>
         </ul>
       </nav>
+      <AssistantFab />
       <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} items={MORE_ITEMS} />
     </>
   );

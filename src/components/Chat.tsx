@@ -30,10 +30,14 @@ export function Chat({
   password,
   onNewMessage,
   pageContext,
+  prefill,
 }: {
   password: string;
   onNewMessage?: () => void;
+  /** What the caregiver was looking at; sent with each question so the answer can lean on it. */
   pageContext?: string;
+  /** Text to drop in the input (not sent) each time `nonce` changes. */
+  prefill?: { text: string; nonce: number };
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -50,6 +54,12 @@ export function Chat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const { cache } = useMedicalCache();
   const patientName = usePatientFirstName();
+
+  const prefillText = prefill?.text;
+  const prefillNonce = prefill?.nonce;
+  useEffect(() => {
+    if (prefillNonce && prefillText !== undefined) setInput(prefillText);
+  }, [prefillText, prefillNonce]);
 
   // Demo only: follow a key saved or cleared elsewhere in the tab (visit prep, uploads).
   useEffect(() => {
@@ -230,11 +240,11 @@ export function Chat({
   }
 
   const Sidebar = () => (
-    <div className="flex flex-col h-full bg-white border-r border-stone-200">
-      <div className="p-3 border-b border-stone-100">
+    <div className="flex flex-col h-full bg-surface border-r border-line">
+      <div className="p-3 border-b border-line">
         <button
           onClick={newChat}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-ink text-paper text-sm font-medium transition-opacity duration-200 ease-out hover:opacity-90"
         >
           <PlusCircle size={15} />
           New chat
@@ -245,13 +255,13 @@ export function Chat({
           <button
             key={s.id}
             onClick={() => switchSession(s.id)}
-            className={`w-full text-left px-3 py-2.5 flex items-center gap-2 hover:bg-stone-50 transition group ${s.id === activeSession ? "bg-stone-100" : ""}`}
+            className={`w-full text-left px-3 py-2.5 flex items-center gap-2 hover:bg-secondary transition-colors duration-200 ease-out group ${s.id === activeSession ? "bg-secondary" : ""}`}
           >
-            <MessageSquare size={13} className="text-stone-400 shrink-0" />
-            <span className="text-xs text-stone-700 truncate flex-1">{s.title}</span>
+            <MessageSquare size={13} className="text-muted shrink-0" />
+            <span className="text-xs text-ink truncate flex-1">{s.title}</span>
             <button
               onClick={(e) => deleteSession(s.id, e)}
-              className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded text-stone-400 hover:text-rose-600 transition"
+              className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded text-muted hover:text-act transition-colors duration-200 ease-out"
               aria-label="Delete conversation"
             >
               <Trash2 size={12} />
@@ -263,10 +273,10 @@ export function Chat({
   );
 
   return (
-    <div className="flex h-full bg-white overflow-hidden">
+    <div className="flex h-full bg-surface text-ink overflow-hidden">
       {/* Desktop sidebar — hidden by default, toggled open */}
       {sidebarOpen && (
-        <div className="hidden lg:flex flex-col w-44 xl:w-48 border-r border-stone-200 shrink-0 overflow-hidden">
+        <div className="hidden lg:flex flex-col w-44 xl:w-48 border-r border-line shrink-0 overflow-hidden">
           <Sidebar />
         </div>
       )}
@@ -277,26 +287,26 @@ export function Chat({
           <div className="w-64 h-full shadow-xl">
             <Sidebar />
           </div>
-          <div className="flex-1 bg-stone-900/30" onClick={() => setSidebarOpen(false)} />
+          <div className="flex-1 bg-ink/30" onClick={() => setSidebarOpen(false)} />
         </div>
       )}
 
       {/* Chat area */}
       <div className="flex flex-col flex-1 min-w-0">
-        <div className="border-b border-stone-200 px-3 py-3 flex items-center gap-2">
+        <div className="border-b border-line px-3 py-3 flex items-center gap-2">
           <button
             onClick={() => setSidebarOpen((o) => !o)}
-            className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 transition"
+            className="p-1.5 rounded-lg text-muted hover:bg-secondary transition-colors duration-200 ease-out"
             aria-label="Toggle sidebar"
           >
             {sidebarOpen ? <ChevronLeft size={16} /> : <MessageSquare size={16} />}
           </button>
           <AppMark className="h-8 w-8" />
           <div className="min-w-0">
-            <h2 className="font-semibold text-stone-900 text-sm leading-tight">
+            <h2 className="font-semibold text-ink text-sm leading-tight">
               Ask about {patientName}'s records
             </h2>
-            <p className="text-xs text-stone-500 truncate">
+            <p className="text-xs text-muted truncate">
               {cache?.sources?.length
                 ? `${cache.sources.filter((s) => !s.error).length} file${cache.sources.filter((s) => !s.error).length === 1 ? "" : "s"} indexed · not medical advice`
                 : "Not medical advice"}
@@ -305,7 +315,7 @@ export function Chat({
           {demoDb && hasKey && (
             <button
               onClick={forgetKey}
-              className="ml-auto shrink-0 text-xs text-stone-500 underline-offset-2 hover:text-stone-800 hover:underline"
+              className="ml-auto shrink-0 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
             >
               Forget key
             </button>
@@ -314,7 +324,7 @@ export function Chat({
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-[300px]">
           {historyReady && messages.length === 0 && (
-            <div className="text-sm text-stone-500 space-y-2">
+            <div className="text-sm text-muted space-y-2">
               <p>Try asking:</p>
               <ul className="space-y-1.5">
                 {[
@@ -325,7 +335,7 @@ export function Chat({
                   <li key={q}>
                     <button
                       onClick={() => setInput(q)}
-                      className="text-left text-stone-700 hover:text-stone-900 underline-offset-2 hover:underline"
+                      className="text-left text-ink underline-offset-2 hover:underline"
                     >
                       "{q}"
                     </button>
@@ -338,11 +348,11 @@ export function Chat({
             <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  m.role === "user" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-800"
+                  m.role === "user" ? "bg-ink text-paper" : "bg-secondary text-ink"
                 }`}
               >
                 {m.role === "assistant" ? (
-                  <div className="prose prose-sm prose-stone max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
+                  <div className="prose prose-sm prose-stone dark:prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0.5">
                     <ReactMarkdown>{m.content}</ReactMarkdown>
                   </div>
                 ) : (
@@ -351,26 +361,27 @@ export function Chat({
               </div>
             </div>
           ))}
-          {loading && <div className="text-xs text-stone-400">Thinking…</div>}
+          {loading && <div className="text-xs text-muted">Thinking…</div>}
           {demoDb && keyPrompt !== null ? (
             <ApiKeyForm onSave={saveKey} error={keyPrompt || undefined} />
           ) : (
-            error && <div className="text-xs text-rose-700">{error}</div>
+            error && <div className="text-xs text-act">{error}</div>
           )}
         </div>
 
-        <form onSubmit={send} className="border-t border-stone-200 p-3 flex gap-2 items-end">
+        <form onSubmit={send} className="border-t border-line p-3 flex gap-2 items-end">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question…"
-            className="flex-1 min-w-0 rounded-lg border border-stone-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-stone-400"
+            data-autofocus
+            className="flex-1 min-w-0 rounded-lg border border-input bg-surface px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="shrink-0 rounded-lg bg-stone-900 text-white text-sm font-medium px-4 py-2 disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-accent text-accent-foreground text-sm font-medium px-4 py-2 disabled:opacity-50"
           >
             Send
           </button>

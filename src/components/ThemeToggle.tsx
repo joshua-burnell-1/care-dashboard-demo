@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { applyTheme, getStoredTheme, setTheme, type Theme } from "@/lib/theme";
+import { applyTheme, getStoredTheme, setTheme, THEME_CHANGE_EVENT, type Theme } from "@/lib/theme";
 
 const NEXT: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
 const LABEL: Record<Theme, string> = { light: "Light", dark: "Dark", system: "System" };
@@ -10,6 +10,13 @@ const ICON = { light: Sun, dark: Moon, system: Monitor } as const;
 /** Cycles light, dark, system. In system mode it follows the OS live. */
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme);
+
+  // Follow a change made elsewhere (the command palette's Toggle theme).
+  useEffect(() => {
+    const sync = () => setThemeState(getStoredTheme());
+    window.addEventListener(THEME_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     if (theme !== "system") return;

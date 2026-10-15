@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getStoredTheme, resolveTheme, setTheme, THEME_STORAGE_KEY } from "./theme";
+import { getStoredTheme, resolveTheme, setTheme, THEME_STORAGE_KEY, toggleTheme } from "./theme";
 
 function stubEnvironment({
   prefersDark = false,
@@ -106,5 +106,22 @@ describe("setTheme", () => {
     const classes = stubEnvironment({ storage: undefined });
     expect(() => setTheme("dark")).not.toThrow();
     expect(classes.has("dark")).toBe(true);
+  });
+});
+
+describe("toggleTheme", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("flips from what is showing now and persists the explicit choice", () => {
+    const storage = memoryStorage();
+    const classes = stubEnvironment({ prefersDark: true, storage });
+    setTheme("system");
+    expect(classes.has("dark")).toBe(true);
+    toggleTheme();
+    expect(classes.has("dark")).toBe(false);
+    expect(storage.data[THEME_STORAGE_KEY]).toBe("light");
+    toggleTheme();
+    expect(classes.has("dark")).toBe(true);
+    expect(storage.data[THEME_STORAGE_KEY]).toBe("dark");
   });
 });

@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { useMedicalCache } from "@/hooks/useMedicalCache";
 import { useLabResults } from "@/hooks/useLabResults";
-import { canonicalMetricKey, canonicalMetricLabel } from "@/lib/normalizeMetric";
+import { labMetricSlug } from "@/lib/labs";
+import { canonicalMetricLabel } from "@/lib/normalizeMetric";
 
 export type LabReading = {
   date?: string;
@@ -14,13 +15,6 @@ export type LabReading = {
 };
 
 export type LabMetric = { slug: string; name: string; readings: LabReading[] };
-
-/** URL-safe slug for a metric: its canonical key with anything but letters and digits as "-". */
-export function labMetricSlug(metric: string): string {
-  return canonicalMetricKey(metric)
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export function useLabMetrics(): { metrics: LabMetric[]; loading: boolean } {
   const { cache, loading: cacheLoading } = useMedicalCache();

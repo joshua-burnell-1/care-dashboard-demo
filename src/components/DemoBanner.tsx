@@ -10,16 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { demoDb } from "@/integrations/supabase/client";
+import { resetDemoData } from "@/lib/demoReset";
 
 export function DemoBanner() {
   const [aboutOpen, setAboutOpen] = useState(false);
   if (!demoDb) return null;
-  const db = demoDb;
-
-  function resetDemo() {
-    db.reset();
-    window.location.reload();
-  }
 
   return (
     <>
@@ -35,7 +30,7 @@ export function DemoBanner() {
           <p className="px-2 py-1.5 text-xs text-muted">
             Everything here is fictional and stays in this browser.
           </p>
-          <DropdownMenuItem onSelect={resetDemo}>
+          <DropdownMenuItem onSelect={resetDemoData}>
             <RotateCcw aria-hidden />
             Reset demo data
           </DropdownMenuItem>

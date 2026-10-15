@@ -33,6 +33,9 @@ export function applyTheme(t: Theme): void {
   document.documentElement.classList.toggle("dark", dark);
 }
 
+/** Fired on window after the theme changes, so controls showing it can follow a change made elsewhere. */
+export const THEME_CHANGE_EVENT = "tend-theme-change";
+
 export function setTheme(t: Theme): void {
   applyTheme(t);
   try {
@@ -40,4 +43,14 @@ export function setTheme(t: Theme): void {
   } catch {
     // Storage can be blocked (private windows); the theme still applies for this page.
   }
+  try {
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+  } catch {
+    // No window to notify (tests, or a stripped-down environment).
+  }
+}
+
+/** Flip between light and dark based on what is showing now (system resolves to one of them). */
+export function toggleTheme(): void {
+  setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark");
 }

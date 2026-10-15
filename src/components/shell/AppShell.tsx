@@ -1,16 +1,20 @@
 // ABOUTME: The one layout around every routed page: skip link, desktop sidebar, top bar, main
-// ABOUTME: region and mobile tab bar, plus shell-wide state (password, Edit mode, tour, assistant).
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+// ABOUTME: region and mobile tab bar, plus shell-wide state (password, Edit mode, tour, palette,
+// ABOUTME: assistant), the PSA reading dialog and the global shortcuts.
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { MessageSquare } from "lucide-react";
-import { Chat } from "@/components/Chat";
+import { AssistantButton, AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { toggleAssistant } from "@/components/assistant/assistantStore";
+import { CommandPalette } from "@/components/command/CommandPalette";
+import { PsaReadingDialog } from "@/components/dashboard/PsaReadingDialog";
 import { Onboarding, hasCompletedOnboarding } from "@/components/Onboarding";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { savePsaReading } from "@/hooks/usePsaReadings";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { AppSessionContext, type AppSession } from "@/lib/appSession";
 import { BRAND_NAME } from "@/lib/brand";
 import { navItemForPath } from "@/lib/nav";
+import { shortcutFor } from "@/lib/shortcuts";
 import { MobileTabBar } from "./MobileTabBar";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -18,7 +22,8 @@ import { TopBar } from "./TopBar";
 export function AppShell({ password, children }: { password: string; children: ReactNode }) {
   const [editMode, setEditMode] = useState(false);
   const [showTour, setShowTour] = useState(() => !hasCompletedOnboarding());
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [psaDialogOpen, setPsaDialogOpen] = useState(false);
   useSessionTimeout();
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -28,9 +33,29 @@ export function AppShell({ password, children }: { password: string; children: R
     document.title = title === BRAND_NAME ? BRAND_NAME : `${title} · ${BRAND_NAME}`;
   }, [title]);
 
+  // Cmd or Ctrl with K or J work everywhere, including inside inputs; nothing else is bound.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const shortcut = shortcutFor(e);
+      if (!shortcut) return;
+      e.preventDefault();
+      if (shortcut === "palette") {
+        setPaletteOpen((open) => !open);
+      } else {
+        setPaletteOpen(false);
+        toggleAssistant();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const openTour = useCallback(() => setShowTour(true), []);
+  const openPsaDialog = useCallback(() => setPsaDialogOpen(true), []);
+
   const session = useMemo<AppSession>(
-    () => ({ password, editMode, setEditMode, openTour: () => setShowTour(true) }),
-    [password, editMode],
+    () => ({ password, editMode, setEditMode, openTour }),
+    [password, editMode, openTour],
   );
 
   return (
@@ -46,18 +71,8 @@ export function AppShell({ password, children }: { password: string; children: R
         <div className="flex min-h-dvh min-w-0 flex-col lg:pl-60 print:pl-0">
           <TopBar
             title={title}
-            assistantSlot={
-              // Placeholder until the assistant slide-over (Task 3): the existing Chat in a sheet.
-              <button
-                type="button"
-                onClick={() => setAssistantOpen(true)}
-                aria-haspopup="dialog"
-                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-line bg-surface px-2.5 text-sm font-medium text-ink transition-colors duration-200 ease-out hover:bg-secondary"
-              >
-                <MessageSquare size={16} aria-hidden />
-                <span className="sr-only lg:not-sr-only">Assistant</span>
-              </button>
-            }
+            onSearch={() => setPaletteOpen(true)}
+            assistantSlot={<AssistantButton />}
           />
           <main id="main" tabIndex={-1} className="min-w-0 flex-1 pb-24 focus:outline-none lg:pb-0">
             {children}
@@ -65,18 +80,20 @@ export function AppShell({ password, children }: { password: string; children: R
         </div>
         <MobileTabBar />
 
-        <Sheet open={assistantOpen} onOpenChange={setAssistantOpen}>
-          <SheetContent
-            side="right"
-            aria-describedby={undefined}
-            className="flex w-full flex-col gap-0 p-0 sm:max-w-[520px] [&>button:first-child]:z-10"
-          >
-            <SheetTitle className="sr-only">Assistant</SheetTitle>
-            <div className="min-h-0 flex-1">
-              <Chat password={password} pageContext={title} />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <AssistantPanel password={password} fallbackContext={title} />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          onTour={openTour}
+          onAddPsaReading={openPsaDialog}
+        />
+        <PsaReadingDialog
+          open={psaDialogOpen}
+          onClose={() => setPsaDialogOpen(false)}
+          onSave={async (item) => {
+            await savePsaReading(password, item);
+          }}
+        />
 
         <Toaster richColors position="bottom-right" />
         {showTour && <Onboarding onDone={() => setShowTour(false)} />}

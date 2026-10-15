@@ -423,7 +423,18 @@ export function RecordsPanel({
           handleFiles(e.dataTransfer.files);
         }}
         onClick={() => !uploading && inputRef.current?.click()}
-        className={`relative overflow-hidden border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition min-h-[220px] sm:min-h-0 ${
+        // Focusable so the keyboard (and the command palette's Upload action) can reach it.
+        data-upload-dropzone
+        role="group"
+        aria-label="Upload documents"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            if (!uploading) inputRef.current?.click();
+          }
+        }}
+        className={`relative overflow-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition min-h-[220px] sm:min-h-0 ${
           dragOver
             ? "border-teal-400 bg-teal-50/40"
             : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50"

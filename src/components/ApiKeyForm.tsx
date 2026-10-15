@@ -16,11 +16,8 @@ export function ApiKeyForm({ onSave, error }: { onSave: (key: string) => void; e
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="space-y-2 rounded-lg border border-stone-200 bg-stone-50 p-3"
-    >
-      <label htmlFor={inputId} className="block text-xs font-medium text-stone-700">
+    <form onSubmit={submit} className="space-y-2 rounded-lg border border-line bg-secondary p-3">
+      <label htmlFor={inputId} className="block text-xs font-medium text-ink">
         Anthropic API key
       </label>
       <div className="flex gap-2">
@@ -32,22 +29,22 @@ export function ApiKeyForm({ onSave, error }: { onSave: (key: string) => void; e
           autoComplete="off"
           spellCheck={false}
           placeholder="sk-ant-…"
-          className="flex-1 min-w-0 rounded-lg border border-stone-300 px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-stone-400"
+          className="flex-1 min-w-0 rounded-lg border border-input bg-surface px-3 py-2 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <button
           type="submit"
           disabled={!value.trim()}
-          className="shrink-0 rounded-lg bg-stone-900 text-white text-sm font-medium px-4 py-2 disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-accent text-accent-foreground text-sm font-medium px-4 py-2 disabled:opacity-50"
         >
           Use key
         </button>
       </div>
       {error && (
-        <p role="alert" className="text-xs text-rose-700">
+        <p role="alert" className="text-xs text-act">
           {error}
         </p>
       )}
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-muted">
         Your key stays in this browser tab and is sent only to Anthropic.
       </p>
     </form>

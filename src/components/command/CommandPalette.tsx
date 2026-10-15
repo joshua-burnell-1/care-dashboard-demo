@@ -34,7 +34,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useLabMetrics } from "@/features/labs/useLabMetrics";
+import { useLabs } from "@/features/labs/useLabs";
 import { useDocuments } from "@/hooks/useDocuments";
 import { usePlanItems } from "@/hooks/usePlanItems";
 import {
@@ -45,6 +45,7 @@ import {
   type CommandGroup as PaletteGroup,
 } from "@/lib/commands";
 import { canResetDemo, resetDemoData } from "@/lib/demoReset";
+import { groupLabs } from "@/lib/labs";
 import { NAV_ITEMS } from "@/lib/nav";
 import { toggleTheme } from "@/lib/theme";
 
@@ -166,14 +167,14 @@ function PaletteBody({
   onPick: (movesFocus: boolean) => void;
 }) {
   const router = useRouter();
-  const { metrics } = useLabMetrics();
+  const { labs } = useLabs();
   const { items: planItems } = usePlanItems();
   const { documents } = useDocuments();
 
   const grouped = useMemo(() => {
     const commands = buildCommands(
       {
-        metrics: metrics.map((m) => m.name),
+        metrics: groupLabs(labs).flatMap((g) => g.metrics.map((m) => m.name)),
         planItems,
         documents,
       },
@@ -202,7 +203,7 @@ function PaletteBody({
           value: (counts.get(c.label) ?? 0) > 1 ? `${c.label} ${c.id}` : c.label,
         })),
     })).filter((g) => g.items.length > 0);
-  }, [metrics, planItems, documents, router, onTour, onAddPsaReading]);
+  }, [labs, planItems, documents, router, onTour, onAddPsaReading]);
 
   function pick(command: PaletteCommand) {
     // Toggling the theme leaves focus where it was; everything else moves it.

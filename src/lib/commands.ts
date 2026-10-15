@@ -1,6 +1,6 @@
 // ABOUTME: The command palette's list: every page, lab result, plan item and document as a
 // ABOUTME: navigation command, plus the global actions. Pure data; the palette supplies the handlers.
-import { labMetricSlug } from "./labs";
+import { metricSlug } from "./labs";
 import { NAV_ITEMS } from "./nav";
 
 export type CommandGroup = "Pages" | "Lab results" | "Plan" | "Documents" | "Actions";
@@ -55,7 +55,7 @@ export function buildCommands(data: CommandData, handlers: CommandHandlers = {})
 
   const seen = new Set<string>();
   for (const metric of data.metrics) {
-    const slug = labMetricSlug(metric);
+    const slug = metricSlug(metric);
     if (!slug || seen.has(slug)) continue;
     seen.add(slug);
     commands.push({ id: `lab:${slug}`, group: "Lab results", label: metric, to: `/labs/${slug}` });

@@ -1,5 +1,5 @@
 // ABOUTME: Realtime-subscribed hook + save/delete helpers for the lab_results
-// ABOUTME: table. Mirrors usePsaReadings so the LabsPanel can merge uploaded labs.
+// ABOUTME: table. Mirrors usePsaReadings so the Labs pages can merge uploaded labs.
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 

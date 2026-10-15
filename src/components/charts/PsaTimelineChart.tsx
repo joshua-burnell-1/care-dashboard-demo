@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import type { TreatmentEvent } from "@/lib/events";
 import { formatDate } from "@/lib/format";
+import { prefersReducedMotion } from "@/lib/motion";
 import { formatPsa } from "@/lib/status";
 import {
   dateToTime,
@@ -29,14 +30,6 @@ export type PsaTimelineReading = { date: string; value: number | null; note?: st
 /** About how wide one event label is, in pixels, for spacing labels onto rows. */
 const LABEL_WIDTH_PX = 120;
 const LABEL_ROW_PX = 15;
-
-/** True when the viewer asked the OS for less motion; the chart then draws without animating. */
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 function axisPsa(value: number): string {
   return value === 0 ? "0" : value.toFixed(2);

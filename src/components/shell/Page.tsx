@@ -8,16 +8,21 @@ export function Page({
   description,
   breadcrumbs,
   actions,
+  wide = false,
   children,
 }: {
   title: string;
   description?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: ReactNode;
+  /** A wider column, for pages with tables and charts. */
+  wide?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 pt-6 pb-10 break-words">
+    <div
+      className={`mx-auto px-4 pt-6 pb-10 break-words ${wide ? "max-w-5xl lg:px-8" : "max-w-3xl"}`}
+    >
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">

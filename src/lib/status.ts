@@ -41,9 +41,9 @@ export type Status = {
 };
 
 /** Doubling faster than this (months) is the decision tree's trigger to move a visit earlier. */
-const FAST_DOUBLING_MONTHS = 2;
+export const FAST_DOUBLING_MONTHS = 2;
 /** Doubling faster than this (months) is worth watching. */
-const MODERATE_DOUBLING_MONTHS = 6;
+export const MODERATE_DOUBLING_MONTHS = 6;
 
 /** PSA values with up to three decimals, as ultrasensitive assays report them. */
 export function formatPsa(value: number): string {

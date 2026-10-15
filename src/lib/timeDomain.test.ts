@@ -3,6 +3,7 @@ import { buildSeed } from "@/demo/seed";
 import { formatDate } from "./format";
 import {
   dateToTime,
+  niceRange,
   layoutEventLabels,
   niceTicks,
   timeToIso,
@@ -131,5 +132,27 @@ describe("withGaps", () => {
   it("leaves monthly readings as one solid line", () => {
     const { points } = toTimeDomain([pt("2026-01-10", 0.04), pt("2026-02-10", 0.05)]);
     expect(withGaps(points).every((r) => r.gap === null)).toBe(true);
+  });
+});
+
+describe("niceRange", () => {
+  it("rounds the bounds outward to an even step", () => {
+    expect(niceRange(12.9, 17.8)).toEqual({ domain: [12, 18], ticks: [12, 14, 16, 18] });
+  });
+
+  it("keeps every tick on the step and covers the data", () => {
+    const { domain, ticks } = niceRange(13.1, 17.5);
+    expect(domain[0]).toBeLessThanOrEqual(13.1);
+    expect(domain[1]).toBeGreaterThanOrEqual(17.5);
+    expect(ticks[0]).toBe(domain[0]);
+    expect(ticks.at(-1)).toBe(domain[1]);
+    const steps = ticks.slice(1).map((t, i) => Number((t - ticks[i]).toFixed(6)));
+    expect(new Set(steps).size).toBe(1);
+  });
+
+  it("handles a flat series", () => {
+    const { domain } = niceRange(5, 5);
+    expect(domain[0]).toBeLessThan(5);
+    expect(domain[1]).toBeGreaterThan(5);
   });
 });

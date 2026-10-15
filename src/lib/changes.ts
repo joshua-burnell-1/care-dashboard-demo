@@ -4,7 +4,7 @@ import type { Document } from "@/hooks/useDocuments";
 import type { EditHistoryEntry } from "@/hooks/useEditHistory";
 import type { LabResult } from "@/hooks/useLabResults";
 import type { PsaReading } from "@/hooks/usePsaReadings";
-import { labMetricSlug } from "./labs";
+import { metricSlug } from "./labs";
 import { canonicalMetricKey } from "./normalizeMetric";
 import { formatPsa } from "./status";
 
@@ -92,7 +92,7 @@ function labChanges(sinceIso: string, labs: LabResult[]): ChangeItem[] {
           : `New lab results: ${results.length} tests`,
       detail: flagged ? `${flagged} outside the reference range` : "All within the reference range",
       date,
-      to: results.length === 1 ? `/labs/${labMetricSlug(results[0].metric)}` : "/labs",
+      to: results.length === 1 ? `/labs/${metricSlug(results[0].metric)}` : "/labs",
     };
   });
 }

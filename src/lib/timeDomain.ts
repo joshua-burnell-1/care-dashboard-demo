@@ -143,3 +143,23 @@ export function niceTicks(max: number, count = 5): number[] {
   }
   return ticks;
 }
+
+/**
+ * An axis range that does not start at zero: bounds rounded outward to a 1, 2, 2.5 or 5 step,
+ * and the evenly stepped ticks between them, for metrics whose readings sit far from zero.
+ */
+export function niceRange(
+  min: number,
+  max: number,
+  count = 4,
+): { domain: [number, number]; ticks: number[] } {
+  const span = max - min || Math.abs(max) || 1;
+  const raw = span / count;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= raw)!;
+  const low = Math.floor(min / step + 1e-9) * step;
+  const high = Math.ceil(max / step - 1e-9) * step;
+  const ticks: number[] = [];
+  for (let t = low; t <= high + step * 1e-6; t += step) ticks.push(Number(t.toFixed(10)));
+  return { domain: [Number(low.toFixed(10)), Number(high.toFixed(10))], ticks };
+}

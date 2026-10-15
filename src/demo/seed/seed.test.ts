@@ -64,7 +64,7 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         expect(q.text.endsWith("?")).toBe(true);
       }
     });
-    it("has all 13 dashboard section keys", () => {
+    it("has all 12 dashboard section keys", () => {
       for (const k of [
         "patient",
         "summary",
@@ -76,7 +76,6 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         "nutrition_foods",
         "nutrition_avoid",
         "pathology_features",
-        "doubling_bands",
         "glossary",
         "open_questions",
       ])
@@ -160,23 +159,16 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
       const phones = s.care_team_members.map((m) => m.phone);
       expect(new Set(phones).size).toBe(phones.length);
     });
-    it("explains the doubling bands on the status scale, with no em dashes", () => {
-      const bands = s.dashboard_sections.find((r) => r.key === "doubling_bands")!.content as {
-        range: string;
-        note: string;
-      }[];
-      expect(bands.map((b) => b.range)).toEqual([
-        "Under 2 months",
-        "2 to 6 months",
-        "Over 6 months",
-      ]);
-      expect(bands.map((b) => b.note.split(".")[0])).toEqual(["Fast", "Moderate", "Slow"]);
+    it("defines doubling time on the status scale, with no em dashes", () => {
       const glossary = s.dashboard_sections.find((r) => r.key === "glossary")!.content as {
         term: string;
         def: string;
       }[];
       expect(glossary.find((g) => g.term === "PSA doubling time")!.def).toContain("Under 2 months");
-      expect(JSON.stringify(bands)).not.toContain("\u2014");
+      expect(JSON.stringify(glossary)).not.toMatch(/\u2014/);
+    });
+    it("no longer seeds a doubling_bands section (Learn derives the bands in code)", () => {
+      expect(s.dashboard_sections.some((r) => r.key === "doubling_bands")).toBe(false);
     });
     it("gives every row a unique id per table", () => {
       for (const [t, rows] of Object.entries(s)) {

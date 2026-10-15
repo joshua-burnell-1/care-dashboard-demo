@@ -1,6 +1,6 @@
 // ABOUTME: The /learn page as an editorial reference: a sticky in-page nav beside (or, on phones,
 // ABOUTME: above) four readable sections: pathology, doubling time, nutrition and the glossary.
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Page } from "@/components/shell/Page";
 import { usePsaReadings } from "@/hooks/usePsaReadings";
 import { demoDb } from "@/integrations/supabase/client";
@@ -17,7 +17,8 @@ import { Glossary } from "./Glossary";
 import type { GlossaryEntry } from "./groupGlossary";
 import { LearnNav, type LearnSection } from "./LearnNav";
 import { NutritionGuide } from "./NutritionGuide";
-import { useScrollSpy } from "./useScrollSpy";
+import { prefersReducedMotion } from "@/lib/motion";
+import { SCROLL_OFFSET_PX, replaceHash, useScrollSpy } from "./useScrollSpy";
 
 const SECTION_KEYS = [
   "patient",
@@ -35,8 +36,13 @@ const NAV: LearnSection[] = [
 ];
 const IDS = NAV.map((s) => s.id);
 
-/** Clears the sticky top bar, and on phones the chip nav under it. */
-const SECTION = "scroll-mt-32 lg:scroll-mt-24";
+/** Where a section lands when scrolled to; shared with the spy's reading band. */
+const SECTION_STYLE = { scrollMarginTop: SCROLL_OFFSET_PX };
+
+function hashId(): string | null {
+  const id = decodeURIComponent(window.location.hash.slice(1));
+  return IDS.includes(id) ? id : null;
+}
 
 function Heading({ id, children }: { id: string; children: React.ReactNode }) {
   return (
@@ -57,21 +63,47 @@ export function LearnPage() {
   const doublingMonths = useMemo(() => postRadiationDoublingMonths(psaReadings), [psaReadings]);
 
   // A link such as /learn#glossary lands on its section. The content above it loads after the
-  // first paint, so scroll once everything has, not when the page mounts.
+  // first paint, so scroll once everything has, not when the page mounts. Only once per mount:
+  // a later refresh or realtime update must not pull the page back.
   const ready = !psaLoading && !sectionsLoading;
+  const landed = useRef(false);
   useEffect(() => {
-    if (!ready) return;
-    const id = decodeURIComponent(window.location.hash.slice(1));
-    if (!IDS.includes(id)) return;
+    if (!ready || landed.current) return;
     const frame = requestAnimationFrame(() => {
+      if (landed.current) return;
+      landed.current = true;
+      const id = hashId();
+      if (!id) return;
       pin(id);
-      document.getElementById(id)?.scrollIntoView({
-        behavior: "instant",
-        block: "start",
-      });
+      document.getElementById(id)?.scrollIntoView({ behavior: "instant", block: "start" });
     });
     return () => cancelAnimationFrame(frame);
   }, [ready, pin]);
+
+  // The hash changes after mount through an external link or a manual edit.
+  useEffect(() => {
+    function onHashChange() {
+      const id = hashId();
+      if (!id) return;
+      pin(id);
+      document
+        .getElementById(id)
+        ?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [pin]);
+
+  // Keep the hash on the section being read, so a reload minutes later does not jump somewhere the
+  // reader left. Not on first render, which would stamp a hash onto a plain /learn.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    replaceHash(active === IDS[0] && window.scrollY < 100 ? null : active);
+  }, [active]);
 
   return (
     <Page
@@ -85,7 +117,7 @@ export function LearnPage() {
         </aside>
 
         <div className="mt-8 max-w-[68ch] space-y-14 lg:mt-0">
-          <section id="pathology" aria-labelledby="pathology-heading" className={SECTION}>
+          <section id="pathology" aria-labelledby="pathology-heading" style={SECTION_STYLE}>
             <Heading id="pathology-heading">
               What is special about {firstName}&rsquo;s pathology
             </Heading>
@@ -103,7 +135,7 @@ export function LearnPage() {
             )}
           </section>
 
-          <section id="doubling-time" aria-labelledby="doubling-heading" className={SECTION}>
+          <section id="doubling-time" aria-labelledby="doubling-heading" style={SECTION_STYLE}>
             <Heading id="doubling-heading">Doubling time, the number to watch</Heading>
             <p className="mt-4 text-base leading-relaxed text-ink/80">
               Doubling time is how long the PSA would take to double if it kept rising at its recent
@@ -113,7 +145,7 @@ export function LearnPage() {
             <DoublingBands months={doublingMonths} firstName={firstName} />
           </section>
 
-          <section id="nutrition" aria-labelledby="nutrition-heading" className={SECTION}>
+          <section id="nutrition" aria-labelledby="nutrition-heading" style={SECTION_STYLE}>
             <Heading id="nutrition-heading">Nutrition guide</Heading>
             <NutritionGuide
               emphasize={sec<NutritionItem[]>("nutrition_foods", [])}
@@ -121,11 +153,7 @@ export function LearnPage() {
             />
           </section>
 
-          <section
-            id="glossary"
-            aria-labelledby="glossary-heading"
-            className={`${SECTION} min-h-[60vh]`}
-          >
+          <section id="glossary" aria-labelledby="glossary-heading" style={SECTION_STYLE}>
             <Heading id="glossary-heading">Glossary</Heading>
             <Glossary entries={glossary} />
           </section>

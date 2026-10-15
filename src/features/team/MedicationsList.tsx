@@ -2,7 +2,6 @@
 // ABOUTME: when it was added, with a quiet edit action per row and an empty state.
 import { Pencil } from "lucide-react";
 import type { MedicationItem } from "@/hooks/useMedications";
-import { formatDate } from "@/lib/format";
 
 const COLUMNS =
   "md:[grid-template-columns:minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_2.25rem]";
@@ -76,7 +75,6 @@ export function MedicationsList({
             </Cell>
             <Cell label="Started by">
               <p className="text-sm text-ink">{m.started_by || "Not recorded"}</p>
-              <p className="text-xs text-muted tabular-nums">Added {formatDate(m.created_at)}</p>
             </Cell>
             <button
               type="button"

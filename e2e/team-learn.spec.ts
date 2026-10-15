@@ -29,7 +29,7 @@ test.describe("team, desktop", () => {
       .locator('a[href^="tel:"]')
       .evaluateAll((els) => els.map((el) => el.getAttribute("href")));
     expect(tels).toHaveLength(5);
-    expect(tels.every((h) => /^tel:555010\d{4}$/.test(h!))).toBe(true);
+    expect(tels.every((h) => /^tel:55501001\d\d$/.test(h!))).toBe(true);
     const mails = await cards
       .locator('a[href^="mailto:"]')
       .evaluateAll((els) => els.map((el) => el.getAttribute("href")));
@@ -149,6 +149,60 @@ test.describe("learn, desktop", () => {
       "aria-current",
       "true",
     );
+  });
+
+  test("a short last section still wins at the bottom, and gives way when scrolling up", async ({
+    page,
+  }) => {
+    await openLearn(page);
+    const nav = page.getByRole("navigation", { name: "On this page" });
+    // No matches leaves the glossary a single line, far too short to reach the reading band.
+    await page.getByLabel("Filter glossary terms").fill("zzzz");
+    await expect(page.getByText("No terms match")).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(nav.getByRole("link", { name: "Glossary" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    // Give a late observer callback time to misfire, then check Glossary held.
+    await page.waitForTimeout(400);
+    await expect(nav.getByRole("link", { name: "Glossary" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await page.evaluate(() => document.getElementById("doubling-time")!.scrollIntoView());
+    await expect(nav.getByRole("link", { name: "Doubling time" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
+  });
+
+  test("the hash follows the section being read without moving the page", async ({ page }) => {
+    await openLearn(page);
+    await page.evaluate(() => document.getElementById("nutrition")!.scrollIntoView());
+    await expect(page).toHaveURL(/\/learn#nutrition$/);
+    const y = await page.evaluate(() => window.scrollY);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.scrollY)).toBe(y);
+    // Back at the top the hash is dropped, so a reload does not jump to a section left behind.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page).toHaveURL(/\/learn$/);
+  });
+
+  test("changing the hash after load scrolls to that section", async ({ page }) => {
+    await openLearn(page);
+    await page.evaluate(() => {
+      window.location.hash = "glossary";
+    });
+    await expect
+      .poll(async () => (await page.locator("#glossary-heading").boundingBox())!.y)
+      .toBeLessThan(300);
+    await expect(
+      page
+        .getByRole("navigation", { name: "On this page" })
+        .getByRole("link", { name: "Glossary" }),
+    ).toHaveAttribute("aria-current", "true");
   });
 
   test("a hash on load scrolls to its section", async ({ page }) => {

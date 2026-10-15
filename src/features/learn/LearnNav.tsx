@@ -1,7 +1,7 @@
 // ABOUTME: The Learn page's in-page nav: a sticky list on the left from desktop up, and a sticky,
 // ABOUTME: horizontally scrollable row of chips under the top bar on phones. aria-current marks the section in view.
-import { useNavigate } from "@tanstack/react-router";
 import { prefersReducedMotion } from "@/lib/motion";
+import { replaceHash } from "./useScrollSpy";
 
 export type LearnSection = { id: string; label: string };
 
@@ -20,8 +20,6 @@ export function LearnNav({
   active: string;
   onPick: (id: string) => void;
 }) {
-  const navigate = useNavigate();
-
   function go(event: React.MouseEvent<HTMLAnchorElement>, id: string) {
     // Let the browser handle modified clicks (new tab, new window).
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
@@ -33,13 +31,7 @@ export function LearnNav({
       .getElementById(id)
       ?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
     // Record the section in the URL without a second scroll or a new history entry.
-    void navigate({
-      to: ".",
-      hash: id,
-      replace: true,
-      resetScroll: false,
-      hashScrollIntoView: false,
-    });
+    replaceHash(id);
   }
 
   return (

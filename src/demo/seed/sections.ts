@@ -1,4 +1,4 @@
-// ABOUTME: The dashboard_sections rows: 13 structured content sections plus the
+// ABOUTME: The dashboard_sections rows: 12 structured content sections plus the
 // ABOUTME: long-form patient record (patient_record_md) the chat assistant reads.
 
 import type { DashboardSection } from "@/hooks/useDashboardSections";
@@ -12,8 +12,7 @@ import type { OpenQuestion } from "@/features/shared/sections";
 import { EDITS, PERSONA, TIMELINE } from "../persona";
 import { buildPatientRecord } from "./patientRecord";
 import { PET_TITLE } from "./team";
-import { DOUBLING_BAND_ROWS, doublingRangeLabel } from "@/lib/doublingBands";
-import { FAST_DOUBLING_MONTHS, type StatusLevel } from "@/lib/status";
+import { FAST_DOUBLING_MONTHS } from "@/lib/status";
 
 type Tone = "rose" | "info" | "warn" | "neutral" | "ok" | "danger";
 /** The Learn page lists foods and drinks separately. */
@@ -343,15 +342,6 @@ function pathologySection(today: Date) {
   ];
 }
 
-const BAND_TONE: Record<StatusLevel, Tone> = { act: "danger", watch: "warn", stable: "ok" };
-
-/** The bands as stored sections, derived from the status scale so the copy cannot drift from it. */
-const DOUBLING_BANDS = DOUBLING_BAND_ROWS.map((b) => ({
-  range: doublingRangeLabel(b),
-  note: `${b.label}. ${b.note}`,
-  tone: BAND_TONE[b.level],
-}));
-
 const GLOSSARY = [
   {
     term: "Adjuvant radiation",
@@ -435,7 +425,6 @@ export function buildDashboardSections(today: Date, inputs: SectionInputs): Dash
     nutrition_foods: NUTRITION_FOODS,
     nutrition_avoid: NUTRITION_AVOID,
     pathology_features: pathologySection(today),
-    doubling_bands: DOUBLING_BANDS,
     glossary: GLOSSARY,
     open_questions: openQuestionsSection(today, inputs.planItems),
   };

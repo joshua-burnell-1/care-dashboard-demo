@@ -96,9 +96,10 @@ describe("dashboard-data", () => {
   it("round-trips care team and medication rows", async () => {
     const team = (await dash({
       action: "upsert-care-team",
-      item: { name: "Dr. Test", role: "Tester" },
+      item: { name: "Dr. Test", role: "Tester", phone: " (555) 010-0100 ", email: "t@example.com" },
     })) as { item: { id: string } };
-    expect(db.all("care_team_members").some((m) => m.id === team.item.id)).toBe(true);
+    const saved = db.all("care_team_members").find((m) => m.id === team.item.id);
+    expect(saved).toMatchObject({ phone: "(555) 010-0100", email: "t@example.com" });
     await dash({ action: "delete-care-team", id: team.item.id });
     expect(db.all("care_team_members").some((m) => m.id === team.item.id)).toBe(false);
 

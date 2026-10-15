@@ -12,6 +12,8 @@ import type { OpenQuestion } from "@/features/shared/sections";
 import { EDITS, PERSONA, TIMELINE } from "../persona";
 import { buildPatientRecord } from "./patientRecord";
 import { PET_TITLE } from "./team";
+import { DOUBLING_BAND_ROWS, doublingRangeLabel } from "@/lib/doublingBands";
+import { FAST_DOUBLING_MONTHS, type StatusLevel } from "@/lib/status";
 
 type Tone = "rose" | "info" | "warn" | "neutral" | "ok" | "danger";
 /** The Learn page lists foods and drinks separately. */
@@ -341,24 +343,14 @@ function pathologySection(today: Date) {
   ];
 }
 
-const DOUBLING_BANDS = [
-  { range: "> 12 mo", note: "Slow. Watchful monitoring is usually enough.", tone: "ok" as Tone },
-  {
-    range: "6 – 12 mo",
-    note: "Intermediate. Decisions depend on overall health and what the family prefers.",
-    tone: "neutral" as Tone,
-  },
-  {
-    range: "3 – 6 mo",
-    note: "Faster than average. Imaging and a treatment plan are usually discussed.",
-    tone: "warn" as Tone,
-  },
-  {
-    range: "< 3 mo",
-    note: "Fast. Treatment is usually recommended once the disease is located.",
-    tone: "danger" as Tone,
-  },
-];
+const BAND_TONE: Record<StatusLevel, Tone> = { act: "danger", watch: "warn", stable: "ok" };
+
+/** The bands as stored sections, derived from the status scale so the copy cannot drift from it. */
+const DOUBLING_BANDS = DOUBLING_BAND_ROWS.map((b) => ({
+  range: doublingRangeLabel(b),
+  note: `${b.label}. ${b.note}`,
+  tone: BAND_TONE[b.level],
+}));
 
 const GLOSSARY = [
   {
@@ -375,7 +367,7 @@ const GLOSSARY = [
   },
   {
     term: "PSA doubling time",
-    def: "The time the PSA takes to double. Under three months is the fastest group.",
+    def: `The time the PSA takes to double. Under ${FAST_DOUBLING_MONTHS} months is the fast group.`,
   },
   {
     term: "PSMA PET/CT",

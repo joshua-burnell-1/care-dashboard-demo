@@ -141,6 +141,8 @@ Deno.serve(async (req) => {
         role: String(item.role ?? "").trim(),
         where_based: String(item.where_based ?? "").trim(),
         note: String(item.note ?? "").trim(),
+        phone: String(item.phone ?? "").trim(),
+        email: String(item.email ?? "").trim(),
         sort_index: Number(item.sort_index ?? 0),
       };
       if (item.id) {

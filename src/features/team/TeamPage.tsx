@@ -1,7 +1,7 @@
-// ABOUTME: The /team content until Task 7: the care team (editable in Edit mode) and the daily
-// ABOUTME: medications and supplements, with the care-team and medication dialogs.
+// ABOUTME: The /team page: the care team as cards with Call, Email and an assistant question, and
+// ABOUTME: the daily medications and supplements, with the existing add and edit dialogs.
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Plus } from "lucide-react";
 import { MascotLoader } from "@/components/MascotLoader";
 import { CareTeamDialog } from "@/components/dashboard/CareTeamDialog";
 import { MedicationDialog } from "@/components/dashboard/MedicationDialog";
@@ -19,11 +19,34 @@ import {
   type MedicationItem,
 } from "@/hooks/useMedications";
 import { useAppSession } from "@/lib/appSession";
-import { Card, EditModeButton, H2 } from "@/features/shared/SectionUi";
-import { MedicationsCard } from "./MedicationsCard";
+import { mainContactId } from "./contact";
+import { MedicationsList } from "./MedicationsList";
+import { MemberCard } from "./MemberCard";
+
+const ADD_BUTTON =
+  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-ink px-3.5 text-sm font-medium text-paper transition-colors duration-200 ease-out hover:bg-ink/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
+function SectionHeader({
+  id,
+  title,
+  action,
+}: {
+  id: string;
+  title: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-end justify-between gap-3">
+      <h2 id={id} className="font-display text-3xl text-ink">
+        {title}
+      </h2>
+      {action}
+    </div>
+  );
+}
 
 export function TeamPage() {
-  const { password, editMode, setEditMode } = useAppSession();
+  const { password } = useAppSession();
   const { items: careTeam, loading: teamLoading, refresh: refreshTeam } = useCareTeam();
   const { items: medications, loading: medsLoading, refresh: refreshMeds } = useMedications();
 
@@ -36,63 +59,62 @@ export function TeamPage() {
     setTeamEditing(member);
     setTeamDialogOpen(true);
   }
+  function editMedication(item: MedicationItem | null) {
+    setMedsEditing(item);
+    setMedsDialogOpen(true);
+  }
+
+  const mainContact = mainContactId(careTeam);
 
   return (
-    <Page
-      title="Team"
-      actions={<EditModeButton editMode={editMode} onToggle={() => setEditMode((e) => !e)} />}
-    >
-      <section className="space-y-4">
-        <H2>Care team</H2>
-        {teamLoading ? (
-          <MascotLoader label="Loading care team…" />
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {careTeam.map((m) => (
-              <Card key={m.id}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-500">{m.role}</p>
-                    <p className="font-semibold text-stone-900 mt-1">{m.name}</p>
-                    <p className="text-sm text-stone-600">{m.where_based}</p>
-                    <p className="text-xs text-stone-400 mt-1">{m.note}</p>
-                  </div>
-                  {editMode && (
-                    <button
-                      onClick={() => editMember(m)}
-                      className="shrink-0 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
-                      aria-label={`Edit ${m.name}`}
-                    >
-                      <Pencil size={14} />
-                    </button>
-                  )}
-                </div>
-              </Card>
-            ))}
-            {editMode && (
-              <button
-                onClick={() => editMember(null)}
-                className="rounded-2xl p-5 border border-dashed border-stone-300 text-stone-400 hover:text-stone-600 hover:border-stone-400 text-sm transition flex items-center justify-center gap-1"
-              >
-                + Add member
+    <Page title="Team" description="Who is on the care team, and what is taken every day." wide>
+      <div className="space-y-10">
+        <section aria-labelledby="care-team-heading">
+          <SectionHeader
+            id="care-team-heading"
+            title="Care team"
+            action={
+              <button type="button" onClick={() => editMember(null)} className={ADD_BUTTON}>
+                <Plus size={16} aria-hidden />
+                Add member
               </button>
-            )}
-          </div>
-        )}
-
-        <H2>Medications & supplements</H2>
-        {medsLoading ? (
-          <MascotLoader label="Loading medications…" />
-        ) : (
-          <MedicationsCard
-            medications={medications}
-            onEdit={(m) => {
-              setMedsEditing(m);
-              setMedsDialogOpen(true);
-            }}
+            }
           />
-        )}
-      </section>
+          {teamLoading ? (
+            <MascotLoader label="Loading care team…" />
+          ) : careTeam.length === 0 ? (
+            <p className="rounded-[20px] border border-line bg-surface p-5 text-sm text-muted">
+              No one is on the care team yet. Add the doctors and nurses who look after the patient.
+            </p>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {careTeam.map((m) => (
+                <li key={m.id}>
+                  <MemberCard member={m} mainContact={m.id === mainContact} onEdit={editMember} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section aria-labelledby="medications-heading">
+          <SectionHeader
+            id="medications-heading"
+            title="Medications & supplements"
+            action={
+              <button type="button" onClick={() => editMedication(null)} className={ADD_BUTTON}>
+                <Plus size={16} aria-hidden />
+                Add medication
+              </button>
+            }
+          />
+          {medsLoading ? (
+            <MascotLoader label="Loading medications…" />
+          ) : (
+            <MedicationsList medications={medications} onEdit={editMedication} />
+          )}
+        </section>
+      </div>
 
       <CareTeamDialog
         open={teamDialogOpen}

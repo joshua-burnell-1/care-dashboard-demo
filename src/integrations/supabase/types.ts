@@ -17,9 +17,11 @@ export type Database = {
       care_team_members: {
         Row: {
           created_at: string
+          email: string
           id: string
           name: string
           note: string
+          phone: string
           role: string
           sort_index: number
           updated_at: string
@@ -27,9 +29,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string
           id?: string
           name: string
           note?: string
+          phone?: string
           role?: string
           sort_index?: number
           updated_at?: string
@@ -37,9 +41,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string
           id?: string
           name?: string
           note?: string
+          phone?: string
           role?: string
           sort_index?: number
           updated_at?: string

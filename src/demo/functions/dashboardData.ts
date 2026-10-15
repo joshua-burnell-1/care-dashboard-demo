@@ -54,6 +54,8 @@ function upsertCareTeam(db: DemoDb, item: Body) {
     role: text(item.role),
     where_based: text(item.where_based),
     note: text(item.note),
+    phone: text(item.phone),
+    email: text(item.email),
     sort_index: Number(item.sort_index ?? 0),
   });
 }

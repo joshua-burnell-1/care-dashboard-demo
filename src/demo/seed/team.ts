@@ -13,36 +13,49 @@ export const PET_TITLE = "PSMA PET/CT scan";
 
 export function buildCareTeam(today: Date): CareTeamMember[] {
   const radiationDone = formatMonthYear(isoDaysFromToday(TIMELINE.radiationEnd, today));
-  const specs: Pick<CareTeamMember, "role" | "name" | "where_based" | "note">[] = [
+  const specs: Pick<
+    CareTeamMember,
+    "role" | "name" | "where_based" | "note" | "phone" | "email"
+  >[] = [
     {
       role: "Urologic oncologist",
       name: "Dr. Priya Raman",
       where_based: PERSONA.primaryInstitution,
       note: "Performed the prostatectomy · leads PSA surveillance",
+      phone: "(555) 010-0142",
+      email: "priya.raman@example.com",
     },
     {
       role: "Radiation oncologist",
       name: "Dr. Samuel Okafor",
       where_based: PERSONA.radiationInstitution,
       note: `35-fraction adjuvant course to the prostate bed, completed ${radiationDone}`,
+      phone: "(555) 010-0157",
+      email: "samuel.okafor@example.com",
     },
     {
       role: "Primary care",
       name: "Dr. Helen Brooks",
       where_based: `${PERSONA.primaryInstitution} · Primary Care`,
       note: "Blood pressure, cholesterol and routine labs",
+      phone: "(555) 010-0163",
+      email: "helen.brooks@example.com",
     },
     {
       role: "Nurse navigator",
       name: "Maria Torres, RN",
       where_based: PERSONA.primaryInstitution,
       note: "First call for scheduling and day-to-day questions",
+      phone: "(555) 010-0118",
+      email: "maria.torres@example.com",
     },
     {
       role: "Medical oncologist (second opinion)",
       name: "Dr. James Whitfield",
       where_based: PERSONA.radiationInstitution,
       note: "Reviewing the PSA trend and systemic options if a scan finds disease",
+      phone: "(555) 010-0171",
+      email: "james.whitfield@example.com",
     },
   ];
   return specs.map((s, i) => ({

@@ -37,6 +37,8 @@ export const TABLE_COLUMNS: Record<TableName, Column[]> = {
     "sort_index",
     "created_at",
     "updated_at",
+    "phone",
+    "email",
   ].map((n) => col(n)),
   medication_items: [
     "id",

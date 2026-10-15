@@ -46,8 +46,10 @@ describe("DemoDb", () => {
 
   it("removes copies stored by earlier seed versions", () => {
     storage.setItem("care_demo_db_v1", "{}");
+    storage.setItem("care_demo_db_v2", "{}");
     new DemoDb(seed, storage);
     expect(storage.getItem("care_demo_db_v1")).toBeNull();
+    expect(storage.getItem("care_demo_db_v2")).toBeNull();
   });
 
   it("works without storage", () => {

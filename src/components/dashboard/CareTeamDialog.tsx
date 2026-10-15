@@ -18,6 +18,8 @@ export function CareTeamDialog({
   const [role, setRole] = useState("");
   const [whereBased, setWhereBased] = useState("");
   const [note, setNote] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const firstRef = useRef<HTMLInputElement>(null);
@@ -28,6 +30,8 @@ export function CareTeamDialog({
       setRole(initial?.role ?? "");
       setWhereBased(initial?.where_based ?? "");
       setNote(initial?.note ?? "");
+      setPhone(initial?.phone ?? "");
+      setEmail(initial?.email ?? "");
       setErr("");
       setTimeout(() => firstRef.current?.focus(), 0);
     }
@@ -55,6 +59,8 @@ export function CareTeamDialog({
         role: role.trim(),
         where_based: whereBased.trim(),
         note: note.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
         sort_index: initial?.sort_index ?? 0,
       });
       onClose();
@@ -124,6 +130,26 @@ export function CareTeamDialog({
           onChange={(e) => setWhereBased(e.target.value)}
           className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
           placeholder="e.g. Springfield, OH"
+        />
+
+        <label className="block text-xs uppercase tracking-wider text-stone-500 mt-4">Phone</label>
+        <input
+          type="tel"
+          maxLength={40}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          placeholder="e.g. (555) 010-0123"
+        />
+
+        <label className="block text-xs uppercase tracking-wider text-stone-500 mt-4">Email</label>
+        <input
+          type="email"
+          maxLength={200}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          placeholder="e.g. jane.smith@example.com"
         />
 
         <label className="block text-xs uppercase tracking-wider text-stone-500 mt-4">Note</label>

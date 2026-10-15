@@ -151,6 +151,33 @@ describe.each([new Date("2026-10-14T12:00:00"), new Date("2028-03-01T12:00:00")]
         }
       }
     });
+    it("gives all 5 care team members a fictional 555 phone and an example.com email", () => {
+      expect(s.care_team_members).toHaveLength(5);
+      for (const m of s.care_team_members) {
+        expect(m.phone).toMatch(/^\(555\) 010-01\d\d$/);
+        expect(m.email).toMatch(/^[a-z.]+@example\.com$/);
+      }
+      const phones = s.care_team_members.map((m) => m.phone);
+      expect(new Set(phones).size).toBe(phones.length);
+    });
+    it("explains the doubling bands on the status scale, with no em dashes", () => {
+      const bands = s.dashboard_sections.find((r) => r.key === "doubling_bands")!.content as {
+        range: string;
+        note: string;
+      }[];
+      expect(bands.map((b) => b.range)).toEqual([
+        "Under 2 months",
+        "2 to 6 months",
+        "Over 6 months",
+      ]);
+      expect(bands.map((b) => b.note.split(".")[0])).toEqual(["Fast", "Moderate", "Slow"]);
+      const glossary = s.dashboard_sections.find((r) => r.key === "glossary")!.content as {
+        term: string;
+        def: string;
+      }[];
+      expect(glossary.find((g) => g.term === "PSA doubling time")!.def).toContain("Under 2 months");
+      expect(JSON.stringify(bands)).not.toContain("\u2014");
+    });
     it("gives every row a unique id per table", () => {
       for (const [t, rows] of Object.entries(s)) {
         if (t === "dashboard_sections") continue;

@@ -3,6 +3,8 @@
 
 import { formatLongDate, formatMonthYear, isoDaysFromToday } from "../dates";
 import { PERSONA, TIMELINE } from "../persona";
+import { DOUBLING_BAND_ROWS, doublingRangeLabel } from "@/lib/doublingBands";
+import { doublingBand } from "@/lib/status";
 import type { SectionInputs } from "./sections";
 
 /** Lists that appear both as dashboard sections and inside the record. */
@@ -238,12 +240,9 @@ export function buildPatientRecord(
     "",
     "## 14. PSA Doubling-Time Bands & Current State",
     "",
-    "- More than 12 months: slow.",
-    "- 6 to 12 months: intermediate.",
-    "- 3 to 6 months: faster than average.",
-    "- Under 3 months: fast.",
+    ...DOUBLING_BAND_ROWS.map((b) => `- ${doublingRangeLabel(b)}: ${b.label.toLowerCase()}.`),
     "",
-    `Current best estimate: about 2.5 months, calculated across the five post-radiation values. The most recent step (${postRad[postRad.length - 2].value} to ${latestPsa.value}) is consistent with that pace.`,
+    `Current best estimate: about 2.5 months (${doublingBand(2.5)!.label.toLowerCase()}), calculated across the five post-radiation values. The most recent step (${postRad[postRad.length - 2].value} to ${latestPsa.value}) is consistent with that pace.`,
     "",
     "## 15. Known Allergies / Other History",
     "",

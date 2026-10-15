@@ -7,6 +7,9 @@ export type CareTeamMember = {
   name: string;
   where_based: string;
   note: string;
+  /** Fictional demo numbers only; empty when none is on file. */
+  phone: string;
+  email: string;
   sort_index: number;
   created_at: string;
   updated_at: string;

@@ -64,6 +64,12 @@ function parseMigrationColumns(): Record<string, { name: string; jsonb: boolean 
       )
       .map((l) => ({ name: l.split(/\s+/)[0], jsonb: /^\w+\s+jsonb\b/i.test(l) }));
   }
+  // Columns added later land at the end of their table, in migration order.
+  for (const m of ddl.matchAll(
+    /alter table (?:only )?public\.(\w+)\s+add column (?:if not exists )?(\w+)\s+(\w+)/gi,
+  )) {
+    tables[m[1]]?.push({ name: m[2], jsonb: m[3].toLowerCase() === "jsonb" });
+  }
   return tables;
 }
 

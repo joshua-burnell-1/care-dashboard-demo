@@ -10,7 +10,7 @@ import type { SeedData } from "./types";
 export type { SeedData, TableName } from "./types";
 
 /** Bump when the seed changes shape so stored demo databases reset. */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 export function buildSeed(today: Date = new Date()): SeedData {
   const psa_readings = buildPsaReadings(today);

@@ -9,6 +9,7 @@ import {
   paginate,
   paginateGroups,
   parseReferenceRange,
+  trendFor,
   type LabResult,
 } from "./labs";
 
@@ -231,11 +232,21 @@ describe("normalizeFlag", () => {
     expect(normalizeFlag("HIGH")).toBe("high");
     expect(normalizeFlag("H")).toBe("high");
     expect(normalizeFlag("Critical high")).toBe("high");
+    expect(normalizeFlag("Critical low")).toBe("low");
     expect(normalizeFlag("LOW")).toBe("low");
     expect(normalizeFlag("l")).toBe("low");
   });
 
+  it("reads a flag with no direction, and any negation, as abnormal", () => {
+    expect(normalizeFlag("Abnormal")).toBe("abnormal");
+    expect(normalizeFlag("critical")).toBe("abnormal");
+    expect(normalizeFlag("Outside normal limits")).toBe("abnormal");
+    expect(normalizeFlag("Not within range")).toBe("abnormal");
+    expect(normalizeFlag("out of range")).toBe("abnormal");
+  });
+
   it("treats normal, blank and unknown flags as not flagged", () => {
+    expect(normalizeFlag("Within normal limits")).toBeUndefined();
     expect(normalizeFlag("NORMAL")).toBeUndefined();
     expect(normalizeFlag("")).toBeUndefined();
     expect(normalizeFlag(undefined)).toBeUndefined();
@@ -390,6 +401,22 @@ describe("labStatus", () => {
     expect(labStatus(lab({ metric: "x", flag: "low" }))).toEqual({ level: "watch", label: "Low" });
   });
 
+  it("checks negations before normal, so Outside normal limits is flagged", () => {
+    expect(labStatus(lab({ metric: "x", flag: "Outside normal limits" }))).toEqual({
+      level: "watch",
+      label: "Flagged",
+    });
+    expect(labStatus(lab({ metric: "x", flag: "Not within range" })).level).toBe("watch");
+  });
+
+  it("shows a neutral-direction flag as Flagged, never High", () => {
+    expect(labStatus(lab({ metric: "x", flag: "Abnormal" }))).toEqual({
+      level: "watch",
+      label: "Flagged",
+    });
+    expect(labStatus(lab({ metric: "x", flag: "critical" })).label).toBe("Flagged");
+  });
+
   it("is In range for a normal flag or a number inside its range", () => {
     expect(labStatus(lab({ metric: "x", flag: "NORMAL" })).level).toBe("stable");
     expect(labStatus(lab({ metric: "x", value: 5, reference_range: "4.0–11.0" })).label).toBe(
@@ -405,5 +432,35 @@ describe("labStatus", () => {
     expect(labStatus(lab({ metric: "x", value: 12, reference_range: "4.0–11.0" })).level).toBe(
       "neutral",
     );
+  });
+});
+
+describe("trendFor", () => {
+  const at = (...values: number[]) =>
+    values.map((value, i) => ({ date: `2026-0${i + 1}-01`, value }));
+
+  it("draws a sparkline from three readings", () => {
+    expect(trendFor(at(1, 2, 3))).toEqual({ kind: "sparkline", values: [1, 2, 3] });
+    expect(trendFor(at(1, 2, 3, 4)).kind).toBe("sparkline");
+  });
+
+  it("shows the change, not a diagonal, for two readings", () => {
+    expect(trendFor(at(13.8, 13.1))).toEqual({
+      kind: "delta",
+      direction: "down",
+      amount: 0.7,
+      since: "2026-01-01",
+    });
+    expect(trendFor(at(5, 9))).toMatchObject({ direction: "up", amount: 4 });
+    expect(trendFor(at(5, 5))).toMatchObject({ direction: "flat", amount: 0 });
+  });
+
+  it("rounds away float noise in the change", () => {
+    expect(trendFor(at(0.085, 0.11))).toMatchObject({ amount: 0.025 });
+  });
+
+  it("calls a single reading the first and none no trend", () => {
+    expect(trendFor(at(4))).toEqual({ kind: "first" });
+    expect(trendFor([])).toEqual({ kind: "none" });
   });
 });

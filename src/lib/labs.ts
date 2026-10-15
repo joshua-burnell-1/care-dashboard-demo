@@ -16,7 +16,8 @@ export type LabResult = {
   note?: string;
 };
 
-export type LabFlag = "high" | "low";
+/** "abnormal" is a flag raised without a direction ("Abnormal", "Outside normal limits"). */
+export type LabFlag = "high" | "low" | "abnormal";
 
 export type LabMetric = {
   slug: string;
@@ -47,16 +48,28 @@ export function metricSlug(metric: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** "high" or "low" for a flag the lab raised, and undefined for normal, blank or unknown flags. */
+/** The slug of the PSA lab row. PSA has its own deep dive at /labs/psa, so this slug leads there. */
+export const PSA_METRIC_SLUG = metricSlug("PSA Total");
+
+/**
+ * The flag a lab raised: "high" or "low" when it says which way, "abnormal" when it only says
+ * something is off (negations such as "Outside normal limits" and "Not within range" count),
+ * and undefined for normal, blank or unknown flags.
+ */
 export function normalizeFlag(flag?: string | null): LabFlag | undefined {
   const f = (flag ?? "").trim().toLowerCase();
   if (!f) return undefined;
   if (f === "l" || f === "ll" || /\blow\b/.test(f)) return "low";
-  if (f === "h" || f === "hh" || /\b(high|abnormal|critical)\b/.test(f)) return "high";
+  if (f === "h" || f === "hh" || /\bhigh\b/.test(f)) return "high";
+  if (/\b(abnormal|critical|flagged|outside|out of|not)\b/.test(f)) return "abnormal";
   return undefined;
 }
 
-export const FLAG_LABELS: Record<LabFlag, string> = { high: "High", low: "Low" };
+export const FLAG_LABELS: Record<LabFlag, string> = {
+  high: "High",
+  low: "Low",
+  abnormal: "Flagged",
+};
 
 /** A reading's value for display: numbers to three decimals (ultrasensitive assays), text as is. */
 export function formatLabValue(value: LabResult["value"]): string {
@@ -70,8 +83,9 @@ export function formatLabValue(value: LabResult["value"]): string {
 export type LabStatus = { level: "watch" | "stable" | "neutral"; label: string };
 
 /**
- * The chip a reading earns: High or Low when the lab flagged it, In range when the lab said
- * normal or the number sits inside its printed range, and a neutral "No flag" otherwise.
+ * The chip a reading earns: High, Low or Flagged when the lab flagged it (negations are checked
+ * first, so "Not within range" is abnormal), In range when the lab said normal or the number
+ * sits inside its printed range, and a neutral "No flag" otherwise.
  */
 export function labStatus(reading: LabResult): LabStatus {
   const flag = normalizeFlag(reading.flag);
@@ -249,4 +263,31 @@ export function paginateGroups(
     else onPage.push({ panel, metrics: [metric] });
   }
   return { groups: onPage, page: paged.page, pages: paged.pages, total: flat.length };
+}
+
+/** How a row shows a metric's trend: a sparkline needs three points to say anything about shape. */
+export type Trend =
+  | { kind: "sparkline"; values: number[] }
+  | { kind: "delta"; direction: "up" | "down" | "flat"; amount: number; since: string }
+  | { kind: "first" }
+  | { kind: "none" };
+
+/**
+ * Three or more numeric readings draw a sparkline. Two would always draw the same diagonal
+ * whatever the size of the change, so they show the change itself. One is the first reading.
+ */
+export function trendFor(series: { date: string; value: number }[]): Trend {
+  if (series.length >= 3) return { kind: "sparkline", values: series.map((p) => p.value) };
+  if (series.length === 2) {
+    const [before, after] = series;
+    // Round away float noise (0.11 - 0.085 is 0.025000000000000008).
+    const change = Number((after.value - before.value).toFixed(6));
+    return {
+      kind: "delta",
+      direction: change > 0 ? "up" : change < 0 ? "down" : "flat",
+      amount: Math.abs(change),
+      since: before.date,
+    };
+  }
+  return series.length === 1 ? { kind: "first" } : { kind: "none" };
 }

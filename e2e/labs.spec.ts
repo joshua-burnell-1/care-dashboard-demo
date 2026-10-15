@@ -88,6 +88,77 @@ test.describe("desktop", () => {
     await expect(rows(page)).toHaveCount(2);
   });
 
+  test("changing the search, the panel or the sort each goes back to page 1", async ({ page }) => {
+    await openLabs(page, "/labs?page=2");
+    await expect(rows(page)).toHaveCount(7);
+    await page.getByRole("searchbox", { name: "Search lab results" }).fill("c");
+    await expect(page).toHaveURL(/[?&]q=c/);
+    expect(searchParams(page).has("page")).toBe(false);
+
+    await openLabs(page, "/labs?page=2");
+    await page
+      .getByRole("combobox", { name: "Panel" })
+      .selectOption("Comprehensive Metabolic Panel");
+    await expect(page).toHaveURL(/panel=Comprehensive/);
+    expect(searchParams(page).has("page")).toBe(false);
+
+    await openLabs(page, "/labs?page=2");
+    await page.getByRole("combobox", { name: "Sort" }).selectOption("name");
+    await expect(page).toHaveURL(/sort=name/);
+    expect(searchParams(page).has("page")).toBe(false);
+    await expect(rows(page)).toHaveCount(8);
+  });
+
+  test("a real reload restores the search box text", async ({ page }) => {
+    await openLabs(page);
+    await page.getByRole("searchbox", { name: "Search lab results" }).fill("hemo");
+    await expect(page).toHaveURL(/[?&]q=hemo/);
+    await page.reload();
+    await expect(rows(page).first()).toBeVisible();
+    await expect(page.getByRole("searchbox", { name: "Search lab results" })).toHaveValue("hemo");
+    await expect(rows(page)).toHaveCount(1);
+  });
+
+  test("a page number past the end is clamped and the URL is corrected", async ({ page }) => {
+    await openLabs(page, "/labs?page=99");
+    await expect(page).toHaveURL(/[?&]page=2\b/);
+    await expect(rows(page)).toHaveCount(7);
+    await expect(
+      page.getByRole("navigation", { name: "Pagination" }).getByRole("button", { name: "Page 2" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  test("a panel split across pages shows its full count on both", async ({ page }) => {
+    const count = (p: Page) =>
+      p.locator('[data-lab-group="Comprehensive Metabolic Panel"] header').getByText(/results?$/);
+    await openLabs(page);
+    await expect(count(page)).toHaveText("8 results");
+    await openLabs(page, "/labs?page=2");
+    await expect(count(page)).toHaveText("8 results");
+  });
+
+  test("two readings show the change instead of a sparkline; more show a sparkline", async ({
+    page,
+  }) => {
+    await openLabs(page);
+    const hemoglobin = page.locator('[data-lab-row="hemoglobin"]');
+    await expect(hemoglobin).toContainText("Down 0.7");
+    await expect(hemoglobin).toContainText("since Jun 13, 2026");
+    await expect(hemoglobin.locator("svg polyline")).toHaveCount(0);
+    await openLabs(page, "/labs?page=2");
+    await expect(page.locator('[data-lab-row="psa-total"] svg polyline')).toHaveCount(1);
+  });
+
+  test("the row action is a quiet icon whose label appears on hover", async ({ page }) => {
+    await openLabs(page);
+    const row = page.locator('[data-lab-row="hemoglobin"]');
+    const label = row.getByText("Ask about this", { exact: true });
+    await expect(label).toHaveCSS("opacity", "0");
+    await row.hover();
+    await expect(label).toHaveCSS("opacity", "1");
+    await expect(row.getByRole("button", { name: "Ask about this Hemoglobin" })).toBeVisible();
+  });
+
   test("search, panel and sort live in the URL and come back after a reload", async ({ page }) => {
     await openLabs(page);
     await page.getByRole("searchbox", { name: "Search lab results" }).fill("gluc");

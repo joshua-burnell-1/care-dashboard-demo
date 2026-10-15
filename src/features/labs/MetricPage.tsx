@@ -120,6 +120,7 @@ export function MetricPage({ slug }: { slug: string }) {
             {range
               ? "Readings by date. The shaded band is the reference range."
               : "Readings by date."}
+            {series.length === 1 && " Only one reading so far."}
           </p>
           <div className="mt-5">
             <MetricChart name={name} series={series} unit={unit} range={range} />

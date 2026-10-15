@@ -3,7 +3,16 @@
 import type { LabGroup as LabGroupData } from "@/lib/labs";
 import { LabRow } from "./LabRow";
 
-export function LabGroup({ group, id }: { group: LabGroupData; id: string }) {
+export function LabGroup({
+  group,
+  id,
+  total,
+}: {
+  group: LabGroupData;
+  id: string;
+  /** How many results the panel has in all, when a page shows only some of them. */
+  total: number;
+}) {
   return (
     <section
       aria-labelledby={id}
@@ -15,7 +24,7 @@ export function LabGroup({ group, id }: { group: LabGroupData; id: string }) {
           {group.panel}
         </h2>
         <span className="shrink-0 text-xs text-muted tabular-nums">
-          {group.metrics.length} {group.metrics.length === 1 ? "result" : "results"}
+          {total} {total === 1 ? "result" : "results"}
         </span>
       </header>
       <ul className="divide-y divide-line">

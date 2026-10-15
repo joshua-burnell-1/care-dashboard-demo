@@ -72,6 +72,21 @@ export function LabsPage() {
     () => paginateGroups(filtered, search.page ?? 1, PAGE_SIZE),
     [filtered, search.page],
   );
+  // A page number past the end (or below 1) was clamped for display; make the URL say so.
+  const requestedPage = search.page;
+  useEffect(() => {
+    if (loading || requestedPage === undefined || requestedPage === paged.page) return;
+    void navigate({
+      search: (prev) => ({ ...prev, page: paged.page === 1 ? undefined : paged.page }),
+      replace: true,
+      resetScroll: false,
+    });
+  }, [loading, requestedPage, paged.page, navigate]);
+
+  const panelTotals = useMemo(
+    () => new Map(filtered.map((g) => [g.panel, g.metrics.length])),
+    [filtered],
+  );
   const totalMetrics = all.reduce((n, g) => n + g.metrics.length, 0);
   const filtering = Boolean(q.trim() || panel || abnormal);
 
@@ -203,6 +218,7 @@ export function LabsPage() {
               {paged.groups.map((group, i) => (
                 <LabGroup
                   key={`${group.panel}-${i}`}
+                  total={panelTotals.get(group.panel) ?? group.metrics.length}
                   group={group}
                   id={`panel-${paged.page}-${i}`}
                 />

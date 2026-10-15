@@ -190,6 +190,19 @@ test.describe("learn, desktop", () => {
     await expect(page).toHaveURL(/\/learn$/);
   });
 
+  test("scrolling gradually back up to the top leaves no hash", async ({ page }) => {
+    await openLearn(page);
+    await page.evaluate(() => document.getElementById("doubling-time")!.scrollIntoView());
+    await expect(page).toHaveURL(/\/learn#doubling-time$/);
+    for (let i = 0; i < 40; i++) {
+      await page.mouse.wheel(0, -120);
+      await page.waitForTimeout(30);
+      if ((await page.evaluate(() => window.scrollY)) === 0) break;
+    }
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page).toHaveURL(/\/learn$/);
+  });
+
   test("changing the hash after load scrolls to that section", async ({ page }) => {
     await openLearn(page);
     await page.evaluate(() => {

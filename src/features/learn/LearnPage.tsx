@@ -1,6 +1,6 @@
 // ABOUTME: The /learn page as an editorial reference: a sticky in-page nav beside (or, on phones,
 // ABOUTME: above) four readable sections: pathology, doubling time, nutrition and the glossary.
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Page } from "@/components/shell/Page";
 import { usePsaReadings } from "@/hooks/usePsaReadings";
 import { demoDb } from "@/integrations/supabase/client";
@@ -67,18 +67,21 @@ export function LearnPage() {
   // a later refresh or realtime update must not pull the page back.
   const ready = !psaLoading && !sectionsLoading;
   const landed = useRef(false);
+  // Read once at mount, so nothing below can rewrite the URL before we have landed on it.
+  const [initialHash] = useState(hashId);
+  const landingPending = () => initialHash !== null && !landed.current;
   useEffect(() => {
     if (!ready || landed.current) return;
     const frame = requestAnimationFrame(() => {
       if (landed.current) return;
       landed.current = true;
-      const id = hashId();
-      if (!id) return;
+      if (!initialHash) return;
+      const id = initialHash;
       pin(id);
       document.getElementById(id)?.scrollIntoView({ behavior: "instant", block: "start" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [ready, pin]);
+  }, [ready, pin, initialHash]);
 
   // The hash changes after mount through an external link or a manual edit.
   useEffect(() => {
@@ -95,15 +98,34 @@ export function LearnPage() {
   }, [pin]);
 
   // Keep the hash on the section being read, so a reload minutes later does not jump somewhere the
-  // reader left. Not on first render, which would stamp a hash onto a plain /learn.
-  const mounted = useRef(false);
+  // reader left. Only when the spy's choice actually changes (not on mount or a StrictMode rerun,
+  // which would stamp a hash onto a plain /learn or strip the one we are about to land on).
+  const syncedFor = useRef(active);
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (active === syncedFor.current) return;
+    syncedFor.current = active;
+    if (landingPending()) return;
     replaceHash(active === IDS[0] && window.scrollY < 100 ? null : active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- landingPending only reads refs and state fixed at mount
   }, [active]);
+
+  // Back at the top the hash goes, however gradually the reader got there.
+  useEffect(() => {
+    let frame = 0;
+    function onScroll() {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (!landingPending() && window.scrollY < 100) replaceHash(null);
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- landingPending only reads refs and state fixed at mount
+  }, []);
 
   return (
     <Page

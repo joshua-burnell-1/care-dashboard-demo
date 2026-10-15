@@ -1,5 +1,5 @@
-// ABOUTME: The medications and supplements as a clean list: item, dose, purpose, who started it and
-// ABOUTME: when it was added, with a quiet edit action per row and an empty state.
+// ABOUTME: The medications and supplements as a clean list: item, dose, purpose, and who started it,
+// ABOUTME: with a quiet edit action per row and an empty state.
 import { Pencil } from "lucide-react";
 import type { MedicationItem } from "@/hooks/useMedications";
 

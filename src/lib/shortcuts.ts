@@ -10,11 +10,13 @@ export type ShortcutEvent = Pick<
 >;
 
 /**
- * Which shortcut an event is, if any. Both need Cmd or Ctrl and no Shift or Alt, so they stay
- * live inside inputs and textareas while a bare letter never triggers anything while typing.
+ * Which shortcut an event is, if any. Both need the platform modifier (Cmd on Apple platforms,
+ * where Ctrl K and J are line-editing keys in text fields; Ctrl elsewhere) and no Shift or Alt,
+ * so they stay live inside inputs and textareas while a bare letter never triggers anything.
  */
-export function shortcutFor(e: ShortcutEvent): Shortcut | null {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null;
+export function shortcutFor(e: ShortcutEvent, apple: boolean = isApplePlatform()): Shortcut | null {
+  const modifier = apple ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+  if (!modifier || e.altKey || e.shiftKey) return null;
   const key = e.key.toLowerCase();
   if (key === "k") return "palette";
   if (key === "j") return "assistant";

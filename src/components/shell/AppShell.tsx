@@ -9,7 +9,7 @@ import { CommandPalette } from "@/components/command/CommandPalette";
 import { PsaReadingDialog } from "@/components/dashboard/PsaReadingDialog";
 import { Onboarding, hasCompletedOnboarding } from "@/components/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
-import { savePsaReading } from "@/hooks/usePsaReadings";
+import { deletePsaReading, savePsaReading, type PsaReading } from "@/hooks/usePsaReadings";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { AppSessionContext, type AppSession } from "@/lib/appSession";
 import { BRAND_NAME } from "@/lib/brand";
@@ -19,11 +19,23 @@ import { MobileTabBar } from "./MobileTabBar";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
+/** A Radix dialog other than our own panel and palette is open (they own Cmd or Ctrl K and J). */
+function anotherModalIsOpen(): boolean {
+  return (
+    document.querySelector(
+      '[role="alertdialog"][data-state="open"], [role="dialog"][data-state="open"]:not([data-assistant-panel]):not(:has([cmdk-root]))',
+    ) !== null
+  );
+}
+
 export function AppShell({ password, children }: { password: string; children: ReactNode }) {
   const [editMode, setEditMode] = useState(false);
   const [showTour, setShowTour] = useState(() => !hasCompletedOnboarding());
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [psaDialogOpen, setPsaDialogOpen] = useState(false);
+  const [psaDialog, setPsaDialog] = useState<{ open: boolean; initial: PsaReading | null }>({
+    open: false,
+    initial: null,
+  });
   useSessionTimeout();
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -34,11 +46,15 @@ export function AppShell({ password, children }: { password: string; children: R
   }, [title]);
 
   // Cmd or Ctrl with K or J work everywhere, including inside inputs; nothing else is bound.
+  // They do nothing while the tour, the PSA dialog or another modal is open, and a held key
+  // does not repeat them.
+  const modalOpen = showTour || psaDialog.open;
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const shortcut = shortcutFor(e);
       if (!shortcut) return;
       e.preventDefault();
+      if (e.repeat || modalOpen || anotherModalIsOpen()) return;
       if (shortcut === "palette") {
         setPaletteOpen((open) => !open);
       } else {
@@ -48,14 +64,17 @@ export function AppShell({ password, children }: { password: string; children: R
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [modalOpen]);
 
   const openTour = useCallback(() => setShowTour(true), []);
-  const openPsaDialog = useCallback(() => setPsaDialogOpen(true), []);
+  const openPsaReading = useCallback(
+    (reading?: PsaReading | null) => setPsaDialog({ open: true, initial: reading ?? null }),
+    [],
+  );
 
   const session = useMemo<AppSession>(
-    () => ({ password, editMode, setEditMode, openTour }),
-    [password, editMode, openTour],
+    () => ({ password, editMode, setEditMode, openTour, openPsaReading }),
+    [password, editMode, openTour, openPsaReading],
   );
 
   return (
@@ -85,13 +104,17 @@ export function AppShell({ password, children }: { password: string; children: R
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
           onTour={openTour}
-          onAddPsaReading={openPsaDialog}
+          onAddPsaReading={() => openPsaReading()}
         />
         <PsaReadingDialog
-          open={psaDialogOpen}
-          onClose={() => setPsaDialogOpen(false)}
+          open={psaDialog.open}
+          initial={psaDialog.initial}
+          onClose={() => setPsaDialog((d) => ({ ...d, open: false }))}
           onSave={async (item) => {
             await savePsaReading(password, item);
+          }}
+          onDelete={async (id) => {
+            await deletePsaReading(password, id);
           }}
         />
 

@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyPsaReadingsChanged, subscribePsaReadingsChanged } from "./psaReadingsSignal";
+
+export { notifyPsaReadingsChanged };
 
 export type PsaReading = {
   id: string;
@@ -33,6 +36,9 @@ export function usePsaReadings() {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
+  // Writes announce themselves, so a save refreshes every mounted copy even without realtime.
+  useEffect(() => subscribePsaReadingsChanged(() => void refresh()), [refresh]);
+
   useEffect(() => {
     const channel = supabase
       .channel("psa_readings_rt")
@@ -52,6 +58,7 @@ export async function savePsaReading(password: string, item: Partial<PsaReading>
   });
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.error || "Failed to save");
+  notifyPsaReadingsChanged();
   return data.item as PsaReading;
 }
 
@@ -61,4 +68,5 @@ export async function deletePsaReading(password: string, id: string) {
   });
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.error || "Failed to delete");
+  notifyPsaReadingsChanged();
 }

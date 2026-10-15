@@ -3,15 +3,9 @@
 import { useMemo, useState } from "react";
 import { MascotLoader } from "@/components/MascotLoader";
 import { KpiCardDialog } from "@/components/dashboard/KpiCardDialog";
-import { PsaReadingDialog } from "@/components/dashboard/PsaReadingDialog";
 import { useMedicalCache } from "@/hooks/useMedicalCache";
 import { usePlanItems } from "@/hooks/usePlanItems";
-import {
-  usePsaReadings,
-  savePsaReading,
-  deletePsaReading,
-  type PsaReading,
-} from "@/hooks/usePsaReadings";
+import { usePsaReadings } from "@/hooks/usePsaReadings";
 import { useKpiCards, saveKpiCard, deleteKpiCard, type KpiCard } from "@/hooks/useKpiCards";
 import { daysBetween, isoDaysFromToday } from "@/demo/dates";
 import { useAppSession } from "@/lib/appSession";
@@ -31,18 +25,16 @@ import { SpecialistOpinions } from "./SpecialistOpinions";
 const SECTION_KEYS = ["patient", "summary", "doctors", "agreements", "disagreements", "red_flags"];
 
 export function OverviewPage() {
-  const { password, editMode, setEditMode, openTour } = useAppSession();
+  const { password, editMode, setEditMode, openTour, openPsaReading } = useAppSession();
   // The medical cache backs the labs and chat context; wait for it like the old dashboard did.
   const { loading: cacheLoading } = useMedicalCache();
   const { items: planItems } = usePlanItems();
-  const { items: psaReadings, loading: psaLoading, refresh: refreshPsa } = usePsaReadings();
+  const { items: psaReadings, loading: psaLoading } = usePsaReadings();
   const { items: kpis, loading: kpisLoading, refresh: refreshKpis } = useKpiCards();
   const { sections, sec } = useSections(SECTION_KEYS);
   const patient = sec<PatientSection>("patient", {});
   const summary = sec<string[]>("summary", []);
 
-  const [psaDialogOpen, setPsaDialogOpen] = useState(false);
-  const [psaEditing, setPsaEditing] = useState<PsaReading | null>(null);
   const [kpiDialogOpen, setKpiDialogOpen] = useState(false);
   const [kpiEditing, setKpiEditing] = useState<KpiCard | null>(null);
 
@@ -145,14 +137,7 @@ export function OverviewPage() {
         <MascotLoader label="Loading records…" />
       ) : (
         <section className="space-y-4">
-          <PsaTrendCard
-            readings={psaReadings}
-            editMode={editMode}
-            onEdit={(r) => {
-              setPsaEditing(r);
-              setPsaDialogOpen(true);
-            }}
-          />
+          <PsaTrendCard readings={psaReadings} editMode={editMode} onEdit={openPsaReading} />
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
             <h2 className="text-base font-semibold text-blue-900 mb-2">
@@ -185,19 +170,6 @@ export function OverviewPage() {
         </section>
       )}
 
-      <PsaReadingDialog
-        open={psaDialogOpen}
-        initial={psaEditing}
-        onClose={() => setPsaDialogOpen(false)}
-        onSave={async (item) => {
-          await savePsaReading(password, item);
-          await refreshPsa();
-        }}
-        onDelete={async (id) => {
-          await deletePsaReading(password, id);
-          await refreshPsa();
-        }}
-      />
       <KpiCardDialog
         open={kpiDialogOpen}
         initial={kpiEditing}

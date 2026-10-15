@@ -152,6 +152,51 @@ test.describe("desktop", () => {
     await expect(assistant(page)).toBeHidden();
   });
 
+  test("assistant: the page behind it does not scroll while it is open", async ({ page }) => {
+    await ready(page);
+    const overflow = () => page.evaluate(() => document.documentElement.style.overflow);
+    await page.keyboard.press("ControlOrMeta+j");
+    await expect(assistant(page)).toBeVisible();
+    expect(await overflow()).toBe("hidden");
+    await page.keyboard.press("Escape");
+    await expect(assistant(page)).toBeHidden();
+    expect(await overflow()).toBe("");
+  });
+
+  test("shortcuts: ignored while the PSA dialog or the tour is open", async ({ page }) => {
+    await ready(page);
+    await openPalette(page);
+    await pickFromPalette(page, "add psa", "Add PSA reading");
+    const psa = page.getByRole("heading", { name: "Add PSA reading" });
+    await expect(psa).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.keyboard.press("ControlOrMeta+j");
+    await expect(palette(page)).toHaveCount(0);
+    await expect(assistant(page)).toBeHidden();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(psa).toHaveCount(0);
+
+    await openPalette(page);
+    await pickFromPalette(page, "tour", "Take the tour");
+    await expect(page.getByRole("button", { name: "Skip tour" })).toBeVisible();
+    await page.keyboard.press("ControlOrMeta+j");
+    await expect(assistant(page)).toBeHidden();
+    await page.getByRole("button", { name: "Skip tour" }).click();
+    await page.keyboard.press("ControlOrMeta+j");
+    await expect(assistant(page)).toBeVisible();
+  });
+
+  test("shortcuts: a held key does not toggle repeatedly", async ({ page }) => {
+    await ready(page);
+    await page.keyboard.down("ControlOrMeta");
+    await page.keyboard.down("k");
+    await page.keyboard.down("k");
+    await page.keyboard.down("k");
+    await page.keyboard.up("k");
+    await page.keyboard.up("ControlOrMeta");
+    await expect(palette(page)).toBeVisible();
+  });
+
   test("assistant: with no key it asks for one, and a draft and the prompt survive closing", async ({
     page,
   }) => {
@@ -232,6 +277,28 @@ test.describe("desktop", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText(`${before + 1} readings`)).toBeVisible();
+  });
+
+  test("Today: adding and editing a reading use the shared PSA dialog and refresh the list", async ({
+    page,
+  }) => {
+    await ready(page);
+    await page.getByRole("button", { name: "Enter edit mode" }).click();
+    const rows = page.getByRole("button", { name: /^\S.* ng\/mL/ });
+    const before = await rows.count();
+    await page.getByRole("button", { name: "+ Add reading" }).click();
+    await page.locator('input[type="date"]').fill("2026-10-12");
+    await page.locator('input[type="number"]').fill("0.222");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("heading", { name: "Add PSA reading" })).toHaveCount(0);
+    await expect(rows).toHaveCount(before + 1);
+
+    await page.getByRole("button", { name: /0\.222 ng\/mL/ }).click();
+    await expect(page.getByRole("heading", { name: "Edit PSA reading" })).toBeVisible();
+    await page.locator('input[type="number"]').fill("0.333");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("button", { name: /0\.333 ng\/mL/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /0\.222 ng\/mL/ })).toHaveCount(0);
   });
 
   test("actions: Upload a document goes to Documents and focuses the upload area", async ({

@@ -9,6 +9,7 @@ import {
   STORAGE_BLOCKED_MESSAGE,
   subscribeApiKey,
 } from "@/demo/apiKey";
+import { mergePrefill } from "@/lib/prefill";
 import { useMedicalCache } from "@/hooks/useMedicalCache";
 import { AppMark } from "@/components/AppMark";
 import { usePatientFirstName } from "@/hooks/usePatientFirstName";
@@ -36,7 +37,7 @@ export function Chat({
   onNewMessage?: () => void;
   /** What the caregiver was looking at; sent with each question so the answer can lean on it. */
   pageContext?: string;
-  /** Text to drop in the input (not sent) each time `nonce` changes. */
+  /** Text to drop in the input (not sent) each time `nonce` changes; appended after any draft. */
   prefill?: { text: string; nonce: number };
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -58,7 +59,9 @@ export function Chat({
   const prefillText = prefill?.text;
   const prefillNonce = prefill?.nonce;
   useEffect(() => {
-    if (prefillNonce && prefillText !== undefined) setInput(prefillText);
+    if (!prefillNonce || prefillText === undefined) return;
+    // Never overwrite what the caregiver has typed: add the prompt after it instead.
+    setInput((draft) => mergePrefill(draft, prefillText));
   }, [prefillText, prefillNonce]);
 
   // Demo only: follow a key saved or cleared elsewhere in the tab (visit prep, uploads).

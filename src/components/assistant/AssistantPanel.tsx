@@ -93,6 +93,17 @@ export function AssistantPanel({
     if (!panel.contains(document.activeElement)) panel.focus();
   }, [open, promptNonce]);
 
+  // The page behind a modal panel does not scroll.
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [open]);
+
   function onKeyDown(e: KeyboardEvent<HTMLElement>) {
     if (e.key === "Escape" && !e.nativeEvent.isComposing) {
       e.stopPropagation();

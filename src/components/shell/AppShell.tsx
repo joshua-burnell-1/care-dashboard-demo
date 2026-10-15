@@ -45,7 +45,8 @@ export function AppShell({ password, children }: { password: string; children: R
     document.title = title === BRAND_NAME ? BRAND_NAME : `${title} · ${BRAND_NAME}`;
   }, [title]);
 
-  // Cmd or Ctrl with K or J work everywhere, including inside inputs; nothing else is bound.
+  // K opens the palette and J the assistant, with Cmd on Apple platforms and Ctrl elsewhere. They
+  // work everywhere, including inside inputs; nothing else is bound.
   // They do nothing while the tour, the PSA dialog or another modal is open, and a held key
   // does not repeat them.
   const modalOpen = showTour || psaDialog.open;

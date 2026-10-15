@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyPsaReadingsChanged } from "@/hooks/usePsaReadings";
 import { toast } from "sonner";
 import { Sparkles, CheckCircle2, Circle, X, Loader2 } from "lucide-react";
 
@@ -155,6 +156,7 @@ export function SuggestionsModal({
     }
 
     const psa = suggestions.psa_readings ?? [];
+    const appliedBeforePsa = applied;
     for (let i = 0; i < psa.length; i++) {
       if (!psaSel[i]) continue;
       await tryUpsert(`PSA ${psa[i].date}`, () =>
@@ -163,6 +165,8 @@ export function SuggestionsModal({
         }),
       );
     }
+    // Tell every mounted PSA view to refetch (realtime alone may not reach them).
+    if (applied > appliedBeforePsa) notifyPsaReadingsChanged();
     const meds = suggestions.medications ?? [];
     for (let i = 0; i < meds.length; i++) {
       if (!medSel[i]) continue;
